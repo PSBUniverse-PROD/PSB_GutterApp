@@ -327,6 +327,7 @@ function useCardModuleSetup({ applications = [], cardGroups = [], cards = [], in
   const [cardDraft, setCardDraft] = useState({ name: "", desc: "", route_path: "", icon: "", role_ids: [] });
   const [expandedGroupId, setExpandedGroupId] = useState(null);
   const [expandedCardId, setExpandedCardId] = useState(null);
+  const [roleAccessVersion, setRoleAccessVersion] = useState(0);
   const batchActiveRef = useRef(false);
 
   // ── Load role access when app changes ──
@@ -350,7 +351,7 @@ function useCardModuleSetup({ applications = [], cardGroups = [], cards = [], in
       setRoles(result.roles || []);
     }).catch(() => {});
     return () => { cancelled = true; };
-  }, [selectedApp?.app_id]);
+  }, [selectedApp?.app_id, roleAccessVersion]);
 
   useEffect(() => {
     if (batchActiveRef.current) return;
@@ -562,6 +563,7 @@ function useCardModuleSetup({ applications = [], cardGroups = [], cards = [], in
       }
       setPersistedCardOrderSigs(nextSigMap); setPendingBatch(createEmptyBatchState());
       batchActiveRef.current = false;
+      setRoleAccessVersion((v) => v + 1);
       router.refresh();
       toastSuccess(`Saved ${pendingSummary.total} batched change(s).`, "Save Batch");
     } catch (error) {

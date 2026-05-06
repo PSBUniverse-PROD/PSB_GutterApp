@@ -155,6 +155,7 @@ export function isTempCardId(v) { return String(v ?? "").startsWith(TEMP_CARD_PR
 
 export async function executeBatchSave(pendingBatch, appGroups, allCards, persistedCardOrderSignatures) {
   const groupIdMap = new Map();
+  const cardIdMap = new Map();
   const deactivatedGroupSet = new Set(
     [...(pendingBatch.groupDeactivations || []), ...(pendingBatch.groupHardDeletes || [])].map((id) => String(id ?? "")),
   );
@@ -182,13 +183,19 @@ export async function executeBatchSave(pendingBatch, appGroups, allCards, persis
     const draftGid = entry?.payload?.group_id;
     const resolved = groupIdMap.get(String(draftGid ?? "")) ?? draftGid;
     if (!resolved || deactivatedGroupSet.has(String(resolved))) continue;
-    await createCardAction({ ...entry.payload, group_id: resolved });
+    const created = await createCardAction({ ...entry.payload, group_id: resolved });
+    const realCardId = created?.card_id;
+    if (realCardId != null && realCardId !== "" && entry.tempId) {
+      cardIdMap.set(String(entry.tempId), String(realCardId));
+    }
   }
 
   // Update cards
   for (const [cid, updates] of Object.entries(pendingBatch.cardUpdates || {})) {
     if (deactivatedCardSet.has(String(cid)) || !Object.keys(updates || {}).length) continue;
-    await updateCardAction(cid, updates);
+    const resolvedCid = cardIdMap.get(String(cid)) ?? cid;
+    if (isTempCardId(resolvedCid)) continue;
+    await updateCardAction(resolvedCid, updates);
   }
 
   // Deactivate cards
@@ -248,20 +255,22 @@ export async function executeBatchSave(pendingBatch, appGroups, allCards, persis
 
   // Save role access adds
   for (const entry of pendingBatch.roleAccessAdds || []) {
-    const cardId = String(entry?.card_id ?? "");
+    const rawCardId = String(entry?.card_id ?? "");
+    const cardId = cardIdMap.get(rawCardId) ?? rawCardId;
     const roleId = String(entry?.role_id ?? "");
-    if (!cardId || !roleId) continue;
+    if (!cardId || !roleId || isTempCardId(cardId)) continue;
     if (deactivatedCardSet.has(cardId)) continue;
     await upsertCardRoleAccessAction(cardId, roleId);
   }
 
   // Save role access removes
   for (const entry of pendingBatch.roleAccessRemoves || []) {
-    const cardId = String(entry?.card_id ?? "");
+    const rawCardId = String(entry?.card_id ?? "");
+    const cardId = cardIdMap.get(rawCardId) ?? rawCardId;
     const roleId = String(entry?.role_id ?? "");
-    if (!cardId || !roleId) continue;
+    if (!cardId || !roleId || isTempCardId(cardId)) continue;
     await removeCardRoleAccessAction(cardId, roleId);
   }
 
-  return { groupIdMap, deactivatedGroupSet, orderedPersistedGroupIds };
+  return { groupIdMap, cardIdMap, deactivatedGroupSet, orderedPersistedGroupIds };
 }
