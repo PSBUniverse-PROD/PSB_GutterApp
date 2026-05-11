@@ -245,9 +245,23 @@ export default function AuthProvider({ children }) {
       });
     });
 
+    // Re-bootstrap roles when the tab regains focus (e.g. after DB changes in admin).
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible" && hasInitializedRef.current && lastAuthUserIdRef.current) {
+        supabase.auth.getUser().then(({ data: userData }) => {
+          if (active && userData?.user) {
+            hydrateAuthState(userData.user, { background: true, syncBootstrap: true });
+          }
+        });
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       active = false;
       data.subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 

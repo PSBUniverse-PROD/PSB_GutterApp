@@ -30,7 +30,7 @@
     "@vercel/microfrontends": "^2.3.2",
     "bcryptjs": "^3.0.3",
     "bootstrap": "^5.3.8",
-    "next": "16.2.2",
+    "next": "^16.2.6",
     "react": "19.2.4",
     "react-bootstrap": "^2.10.10",
     "react-dom": "19.2.4"

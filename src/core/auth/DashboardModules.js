@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Card, Col, Container, Row } from "react-bootstrap";
@@ -40,6 +41,23 @@ function resolveCardTarget(path) {
 
 export default function DashboardModules({ modules }) {
   const { roles, loading } = useAuth();
+  const router = useRouter();
+  const hasMountedRef = useRef(false);
+
+  // Re-fetch server data when the tab regains focus (e.g. after editing cards in admin).
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible" && hasMountedRef.current) {
+        router.refresh();
+      }
+    }
+
+    // Skip the first paint — only refresh on subsequent focus events.
+    hasMountedRef.current = true;
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [router]);
 
   const safeModules = useMemo(() => (Array.isArray(modules) ? modules : []), [modules]);
 
