@@ -47,7 +47,7 @@
  */
 const gutterModule = {
   key: "gutter",
-  module_key: "psbuniverse",          // ← change to your app key from Application Setup
+  module_key: "gutter-app",          // ← change to your app key from Application Setup
   name: "Gutter",
   description: "TODO: Describe what this module does.",
   icon: "box",                        // ← pick from https://fontawesome.com/search?o=r&m=free
