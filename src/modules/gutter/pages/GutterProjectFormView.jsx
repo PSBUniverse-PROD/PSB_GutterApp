@@ -706,82 +706,111 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
                   </div>
 
                   {hasBreakdownData && (
-                    <div className="quote-review-column quote-review-column-material">
-                      <div className="pt-3 quote-material-details">
-                        <div className="small text-uppercase text-muted fw-semibold mb-3">Material Details</div>
+                    <div className="quote-review-column quote-review-column-material" style={{ borderLeft: "1px solid #ccc", paddingLeft: "16px" }}>
+                      <div className="pt-3 quote-material-details" style={{ fontSize: "0.82rem" }}>
+                        <div className="small text-uppercase text-muted fw-semibold mb-2">Material Details</div>
                         {sectionBreakdownRows.length > 0 && (
                           <>
-                            <div className="fw-semibold mb-2">Section Details</div>
-                            <div className="material-sections-stack">
-                              {sectionBreakdownRows.map((row) => (
-                                <article className="material-section-card" key={row.section}>
-                                  <div className="material-section-header">Section {row.section}</div>
-                                  <div className="material-section-block">
-                                    <div className="material-section-block-title">Gutter k Style 6 Inch</div>
-                                    <div className="material-section-fields material-section-fields-gutter">
-                                      <div className="material-section-field"><span className="material-section-label">Sides</span><span className="material-section-value">{displayIntOrDash(row.sides)}</span></div>
-                                      <div className="material-section-field"><span className="material-section-label">Color</span><span className="material-section-value">{displayOrDash(row.gutterColor)}</span></div>
-                                      <div className="material-section-field"><span className="material-section-label">Length</span><span className="material-section-value">{row.ft === null ? "—" : `${displayIntOrDash(row.ft)} FT`}</span></div>
-                                      <div className="material-section-field"><span className="material-section-label">Height</span><span className="material-section-value">{row.heightFt === null ? "—" : `${displayIntOrDash(row.heightFt)} FT`}</span></div>
-                                      <div className="material-section-field"><span className="material-section-label">Gutter FT</span><span className="material-section-value">{fmt(row.gutterFt)} FT</span></div>
-                                    </div>
-                                  </div>
-                                  <div className="material-section-block">
-                                    <div className="material-section-block-title">3x4 Downspouts</div>
-                                    <div className="material-section-fields material-section-fields-downspout-detail">
-                                      <div className="material-section-field"><span className="material-section-label">Color</span><span className="material-section-value">{displayOrDash(row.downspoutColor)}</span></div>
-                                      <div className="material-section-field"><span className="material-section-label">Quantity</span><span className="material-section-value">{displayIntOrDash(row.dsQty)}</span></div>
-                                      <div className="material-section-field"><span className="material-section-label">Downspout FT</span><span className="material-section-value">{fmt(row.downspoutFt)} FT</span></div>
-                                    </div>
-                                  </div>
-                                </article>
-                              ))}
-                            </div>
+                            <div className="fw-semibold mb-1" style={{ fontSize: "0.8rem" }}>Gutter k Style 6 Inch</div>
+                            <table style={{ width: "100%", fontSize: "0.75rem", borderCollapse: "collapse" }}>
+                              <thead>
+                                <tr style={{ borderBottom: "1px solid #ccc" }}>
+                                  <th style={{ textAlign: "left", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Section</th>
+                                  <th style={{ textAlign: "center", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Sides</th>
+                                  <th style={{ textAlign: "left", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Color</th>
+                                  <th style={{ textAlign: "center", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Length</th>
+                                  <th style={{ textAlign: "center", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Height</th>
+                                  <th style={{ textAlign: "right", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Gutter FT</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sectionBreakdownRows.map((row) => (
+                                  <tr key={`gutter-${row.section}`} style={{ borderBottom: "1px solid #eee" }}>
+                                    <td style={{ padding: "3px 6px", fontWeight: 600 }}>{row.section}</td>
+                                    <td style={{ padding: "3px 6px", textAlign: "center" }}>{displayIntOrDash(row.sides)}</td>
+                                    <td style={{ padding: "3px 6px" }}>{displayOrDash(row.gutterColor)}</td>
+                                    <td style={{ padding: "3px 6px", textAlign: "center" }}>{row.ft === null ? "—" : `${displayIntOrDash(row.ft)} FT`}</td>
+                                    <td style={{ padding: "3px 6px", textAlign: "center" }}>{row.heightFt === null ? "—" : `${displayIntOrDash(row.heightFt)} FT`}</td>
+                                    <td style={{ padding: "3px 6px", textAlign: "right" }}>{fmt(row.gutterFt)} FT</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
 
-                            <div className="my-3">
-                              <div className="fw-semibold mb-2">End Caps Totals</div>
-                              <article className="material-section-card material-section-card-compact">
-                                <div className="material-section-block">
-                                  <div className="material-section-fields material-section-fields-downspout">
-                                    <div className="material-section-field"><span className="material-section-label">Total Right End Caps</span><span className="material-section-value">{displayIntOrDash(totalEndCapsNeeded.right)}</span></div>
-                                    <div className="material-section-field"><span className="material-section-label">Total Left End Caps</span><span className="material-section-value">{displayIntOrDash(totalEndCapsNeeded.left)}</span></div>
-                                  </div>
-                                </div>
-                              </article>
+                            <div className="fw-semibold mb-1" style={{ fontSize: "0.8rem", marginTop: "10px" }}>3x4 Downspouts</div>
+                            <table style={{ width: "100%", fontSize: "0.75rem", borderCollapse: "collapse" }}>
+                              <thead>
+                                <tr style={{ borderBottom: "1px solid #ccc" }}>
+                                  <th style={{ textAlign: "left", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Section</th>
+                                  <th style={{ textAlign: "left", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Color</th>
+                                  <th style={{ textAlign: "center", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Qty</th>
+                                  <th style={{ textAlign: "right", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Downspout FT</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {sectionBreakdownRows.map((row) => (
+                                  <tr key={`ds-${row.section}`} style={{ borderBottom: "1px solid #eee" }}>
+                                    <td style={{ padding: "3px 6px", fontWeight: 600 }}>{row.section}</td>
+                                    <td style={{ padding: "3px 6px" }}>{displayOrDash(row.downspoutColor)}</td>
+                                    <td style={{ padding: "3px 6px", textAlign: "center" }}>{displayIntOrDash(row.dsQty)}</td>
+                                    <td style={{ padding: "3px 6px", textAlign: "right" }}>{fmt(row.downspoutFt)} FT</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+
+                            <div style={{ borderTop: "1px solid #ccc", paddingTop: "8px", marginBottom: "6px" }}>
+                              <div className="fw-semibold mb-1" style={{ fontSize: "0.8rem" }}>End Caps Totals</div>
+                              <table style={{ width: "100%", fontSize: "0.75rem", borderCollapse: "collapse" }}>
+                                <thead>
+                                  <tr style={{ borderBottom: "1px solid #ccc" }}>
+                                    <th style={{ textAlign: "left", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Right</th>
+                                    <th style={{ textAlign: "left", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Left</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td style={{ padding: "3px 6px" }}>{displayIntOrDash(totalEndCapsNeeded.right)}</td>
+                                    <td style={{ padding: "3px 6px" }}>{displayIntOrDash(totalEndCapsNeeded.left)}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
                             </div>
                           </>
                         )}
 
                         {selectedLeafGuardName && (
-                          <div className="mb-3">
-                            <div className="fw-semibold mb-2">Leaf Guard</div>
-                            <article className="material-section-card">
-                              <div className="material-section-block">
-                                <div className="material-section-fields material-section-fields-single">
-                                  <div className="material-section-field"><span className="material-section-label">Name</span><span className="material-section-value">{selectedLeafGuardName}</span></div>
-                                </div>
-                              </div>
-                            </article>
+                          <div style={{ borderTop: "1px solid #ccc", paddingTop: "8px", marginBottom: "6px" }}>
+                            <div className="fw-semibold mb-1" style={{ fontSize: "0.8rem" }}>Leaf Guard</div>
+                            <div style={{ fontSize: "0.75rem", paddingLeft: "6px" }}>
+                              <span style={{ color: "#777" }}>Name:</span> {selectedLeafGuardName}
+                            </div>
                           </div>
                         )}
 
                         {extrasMaterialRows.length > 0 && (
-                          <div className="mb-1">
-                            <div className="fw-semibold mb-2">Extras</div>
-                            <div className="material-sections-stack">
-                              {extrasMaterialRows.map((extra, i) => (
-                                <article className="material-section-card" key={i}>
-                                  <div className="material-section-header">Extra {i + 1}</div>
-                                  <div className="material-section-block">
-                                    <div className="material-section-fields material-section-fields-extra">
-                                      <div className="material-section-field"><span className="material-section-label">Description</span><span className="material-section-value">{displayOrDash(extra.description)}</span></div>
-                                      <div className="material-section-field"><span className="material-section-label">Quantity</span><span className="material-section-value">{displayIntOrDash(extra.qty)}</span></div>
-                                      <div className="material-section-field"><span className="material-section-label">Price (Per Item)</span><span className="material-section-value">{fmtCurrency(extra.unitPrice || 0)}</span></div>
-                                    </div>
-                                  </div>
-                                </article>
-                              ))}
-                            </div>
+                          <div style={{ borderTop: "1px solid #ccc", paddingTop: "8px", marginBottom: "4px" }}>
+                            <div className="fw-semibold mb-1" style={{ fontSize: "0.8rem" }}>Extras</div>
+                            <table style={{ width: "100%", fontSize: "0.75rem", borderCollapse: "collapse", paddingLeft: "6px" }}>
+                              <thead>
+                                <tr style={{ borderBottom: "1px solid #ccc" }}>
+                                  <th style={{ textAlign: "left", padding: "2px 6px", color: "#777", fontWeight: 600 }}>#</th>
+                                  <th style={{ textAlign: "left", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Description</th>
+                                  <th style={{ textAlign: "center", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Qty</th>
+                                  <th style={{ textAlign: "right", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Price</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {extrasMaterialRows.map((extra, i) => (
+                                  <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
+                                    <td style={{ padding: "3px 6px", fontWeight: 600 }}>{i + 1}</td>
+                                    <td style={{ padding: "3px 6px" }}>{displayOrDash(extra.description)}</td>
+                                    <td style={{ padding: "3px 6px", textAlign: "center" }}>{displayIntOrDash(extra.qty)}</td>
+                                    <td style={{ padding: "3px 6px", textAlign: "right" }}>{fmtCurrency(extra.unitPrice || 0)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
                         )}
                       </div>
