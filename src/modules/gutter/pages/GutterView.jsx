@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Container } from "react-bootstrap";
 import { Button, Modal, TableZ, toastError, toastSuccess } from "@/shared/components/ui";
@@ -228,9 +227,7 @@ export default function GutterView({ projects = [], statuses = [] }) {
           <p className="text-muted mb-0">Manage gutter quote projects.</p>
         </div>
         <div className="d-flex gap-2">
-          <Link href="/gutter/new" className="btn btn-primary btn-sm">
-            Create Project
-          </Link>
+          <Button variant="primary" onClick={() => router.push("/gutter/new")}>Create Project</Button>
         </div>
       </div>
 
