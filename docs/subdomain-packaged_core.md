@@ -557,6 +557,10 @@ VS Code has a built-in feature called `files.readonlyInclude` that marks files a
 
 Instead, `scripts/setup.ps1` adds the readonly rules only in module repos. It detects the repo type by counting git remotes — if the only remote points to PSBUniverse-core, it is the core repo (senior dev, push allowed). If there are 2+ remotes (origin + core), or the single remote points elsewhere (fresh module clone), it is a module repo and gets the readonly rules.
 
+**The approach: lock everything, unlock only your module.**
+
+setup.ps1 scans `src/modules/` and treats any folder that is NOT a core group (`admin`, `psbpages`) as the jr dev's own module. Those folders get excluded from readonly. Everything else stays locked.
+
 ```
 How it works:
 ├── Core repo (PSBUniverse-core)
@@ -566,26 +570,26 @@ How it works:
 │
 └── Module repos (Metal, Gutter)
     ├── 2+ remotes (origin + core) → jr dev detected
-    ├── .vscode/settings.json starts without readonly rules (synced from core)
     ├── Jr dev runs setup.ps1 once after cloning
-    └── setup.ps1 adds files.readonlyInclude to .vscode/settings.json locally
+    ├── setup.ps1 scans src/modules/ for non-core folders
+    │   └── e.g. finds metal-buildings/ (not admin/ or psbpages/)
+    ├── Sets files.readonlyInclude to ** (everything locked)
+    └── Sets files.readonlyExclude to unlock only dev's module + .env
 ```
 
-The readonly rules that setup.ps1 adds:
+Example: a jr dev in the Metal repo who ran `create-module -- metal-buildings` gets:
 
 ```json
 "files.readonlyInclude": {
-    "**/src/core/**": true,
-    "**/src/shared/**": true,
-    "**/src/styles/**": true,
-    "**/src/modules/admin/**": true,
-    "**/src/modules/psbpages/**": true,
-    "**/supabase/**": true,
-    "**/config/**": true,
-    "**/scripts/**": true,
-    "**/docs/**": true
+    "**": true
+},
+"files.readonlyExclude": {
+    "**/.env*": true,
+    "**/src/modules/metal-buildings/**": true
 }
 ```
+
+This means the dev can only type in their own module folder and `.env.local`. Everything else — `src/core/`, `src/shared/`, `config/`, `scripts/`, even `src/modules/admin/` — is read-only in VS Code.
 
 ```
 What happens in VS Code after setup:
@@ -593,14 +597,16 @@ What happens in VS Code after setup:
 ├── IntelliSense and Go-to-Definition still work on them
 ├── BUT the editor blocks typing — you literally cannot edit the file
 ├── VS Code shows a "read-only" indicator in the tab
-└── Dev immediately understands: "this file is infrastructure, not mine"
+├── Terminal commands (npm, git, node scripts) still work normally
+│   └── Readonly is editor-only, not filesystem-level
+└── If a new module is created later, re-run setup.ps1 to unlock it
 ```
 
-**Why this is stronger than README warnings:** READMEs require the dev to read a file first. VS Code readonly is instant physical feedback — they try to type and nothing happens. That creates a mental boundary: "these folders are infrastructure" vs. "everything is editable."
+**Why this is stronger than listing protected folders:** Instead of hoping you listed every folder that should be locked, you lock everything and only unlock what the dev actually needs. Any new file or folder added to core is automatically protected — zero maintenance.
 
 **What it does NOT do:** This is editor-level only, not actual security. A dev can still edit files outside VS Code, or remove the readonly setting from their local `.vscode/settings.json`. That is why pre-commit hooks and CI are still required — they catch what the editor cannot.
 
-**Sync safety:** Since setup.ps1 adds the readonly block to the end of `.vscode/settings.json` locally, and sync-repo merges from core (which does NOT have the readonly block), there is no merge conflict. Core controls the base settings, setup.ps1 adds the module-repo-only readonly rules on top.
+**Sync safety:** Since setup.ps1 writes the readonly rules to `.vscode/settings.json` locally, and sync-repo merges from core (which does NOT have the readonly rules), there is no merge conflict. Core controls the base settings, setup.ps1 adds the module-repo-only readonly rules on top.
 
 ### Protection Layer 6 — README Warnings in Protected Folders
 

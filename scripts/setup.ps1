@@ -93,80 +93,93 @@ NEXT_PUBLIC_ENV=local
 }
 
 # ── 4. VS Code read-only rules (module repos only) ─────────────
+#
+# Strategy: lock EVERYTHING, then unlock only the jr dev's own module folders.
+# setup.ps1 scans src/modules/ and treats any folder that is NOT a core group
+# (admin, psbpages) as the dev's own module — those get excluded from readonly.
 
 $settingsPath = ".vscode/settings.json"
-$readonlyMarker = "files.readonlyInclude"
 
 if ($isModuleRepo) {
-    $needsReadonly = $true
+    # Core module groups (synced from core, must stay readonly)
+    $coreModuleGroups = @("admin", "psbpages")
 
-    if (Test-Path $settingsPath) {
-        $currentContent = Get-Content $settingsPath -Raw
-        if ($currentContent -match [regex]::Escape($readonlyMarker)) {
-            $needsReadonly = $false
+    # Detect jr dev's own module folders (everything else in src/modules/)
+    $devModules = @()
+    if (Test-Path "src/modules") {
+        Get-ChildItem -Path "src/modules" -Directory | ForEach-Object {
+            if ($_.Name -notin $coreModuleGroups) {
+                $devModules += $_.Name
+            }
         }
     }
 
-    if ($needsReadonly) {
-        Write-Host "`n[4/4] Adding VS Code read-only rules for protected folders..." -ForegroundColor Green
+    # Check if current settings already have the correct readonly config
+    $needsUpdate = $true
+    if (Test-Path $settingsPath) {
+        $raw = Get-Content $settingsPath -Raw
+        if ($raw -match '"files\.readonlyInclude"' -and $raw -match '"\*\*"\s*:\s*true') {
+            # readonlyInclude with ** exists — check if all dev modules are excluded
+            $allExcluded = $true
+            foreach ($mod in $devModules) {
+                if ($raw -notmatch [regex]::Escape("**/src/modules/$mod/**")) {
+                    $allExcluded = $false
+                    break
+                }
+            }
+            if ($allExcluded -and $raw -match '"files\.readonlyExclude"') {
+                $needsUpdate = $false
+            }
+        }
+    }
+
+    if ($needsUpdate) {
+        Write-Host "`n[4/4] Configuring VS Code read-only rules..." -ForegroundColor Green
 
         if (-not (Test-Path ".vscode")) {
             New-Item -ItemType Directory -Path ".vscode" -Force | Out-Null
         }
 
+        # Read or create settings object
         if (Test-Path $settingsPath) {
-            # Read existing settings, strip trailing closing brace, append readonly block
-            $existing = Get-Content $settingsPath -Raw
-            $existing = $existing.TrimEnd()
-
-            # Remove the final } so we can append new properties
-            if ($existing.EndsWith("}")) {
-                $existing = $existing.Substring(0, $existing.LastIndexOf("}")).TrimEnd()
-                # Add a comma after the last property if needed
-                if (-not $existing.EndsWith(",") -and -not $existing.EndsWith("{")) {
-                    $existing += ","
-                }
-            }
-
-            $readonlyBlock = @"
-
-  "files.readonlyInclude": {
-    "**/src/core/**": true,
-    "**/src/shared/**": true,
-    "**/src/styles/**": true,
-    "**/src/modules/admin/**": true,
-    "**/src/modules/psbpages/**": true,
-    "**/supabase/**": true,
-    "**/config/**": true,
-    "**/scripts/**": true,
-    "**/docs/**": true
-  }
-}
-"@
-            $merged = $existing + $readonlyBlock
-            $merged | Set-Content -Path $settingsPath -Encoding UTF8
+            $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
         } else {
-            # No existing settings file — create one with just readonly rules
-            $fresh = @"
-{
-  "files.readonlyInclude": {
-    "**/src/core/**": true,
-    "**/src/shared/**": true,
-    "**/src/styles/**": true,
-    "**/src/modules/admin/**": true,
-    "**/src/modules/psbpages/**": true,
-    "**/supabase/**": true,
-    "**/config/**": true,
-    "**/scripts/**": true,
-    "**/docs/**": true
-  }
-}
-"@
-            $fresh | Set-Content -Path $settingsPath -Encoding UTF8
+            $settings = New-Object PSObject
         }
 
-        Write-Host "  VS Code read-only rules added." -ForegroundColor Gray
-        Write-Host "  Protected folders will appear as read-only in VS Code." -ForegroundColor Gray
+        # readonlyInclude: lock everything
+        $include = New-Object PSObject
+        $include | Add-Member -NotePropertyName "**" -NotePropertyValue $true
+        if ($settings.PSObject.Properties["files.readonlyInclude"]) {
+            $settings."files.readonlyInclude" = $include
+        } else {
+            $settings | Add-Member -NotePropertyName "files.readonlyInclude" -NotePropertyValue $include
+        }
+
+        # readonlyExclude: unlock dev's own module folders + .env files
+        $exclude = New-Object PSObject
+        $exclude | Add-Member -NotePropertyName "**/.env*" -NotePropertyValue $true
+        foreach ($mod in ($devModules | Sort-Object)) {
+            $exclude | Add-Member -NotePropertyName "**/src/modules/$mod/**" -NotePropertyValue $true
+        }
+        if ($settings.PSObject.Properties["files.readonlyExclude"]) {
+            $settings."files.readonlyExclude" = $exclude
+        } else {
+            $settings | Add-Member -NotePropertyName "files.readonlyExclude" -NotePropertyValue $exclude
+        }
+
+        $settings | ConvertTo-Json -Depth 10 | Set-Content -Path $settingsPath -Encoding UTF8
+
+        if ($devModules.Count -gt 0) {
+            Write-Host "  Everything is read-only EXCEPT:" -ForegroundColor Gray
+            foreach ($mod in $devModules) {
+                Write-Host "    - src/modules/$mod/" -ForegroundColor White
+            }
+            Write-Host "    - .env files" -ForegroundColor White
+        } else {
+            Write-Host "  Everything is read-only. No module folders detected yet." -ForegroundColor Yellow
+            Write-Host "  Run setup.ps1 again after creating your module." -ForegroundColor Yellow
+        }
         $allGood = $false
     } else {
         Write-Host "[4/4] VS Code read-only rules OK." -ForegroundColor DarkGray
