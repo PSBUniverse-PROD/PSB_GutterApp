@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Modal, TableZ, toastError, toastSuccess } from "@/shared/components/ui";
+import { Button, Modal, TableZ, toastError, toastSuccess } from "@/shared/components/ui";
 import { createSetupRow, updateSetupRow, deleteSetupRow } from "../../data/gutter.actions";
 import SetupWorkspaceLayout from "./SetupWorkspaceLayout";
 import SetupSidebar from "./SetupSidebar";
@@ -296,10 +296,8 @@ export default function GutterSetupView({ setup = {} }) {
       <Modal show={!!confirmDelete} onHide={() => setConfirmDelete(null)} title="Confirm Delete">
         <p className="setup-delete-msg">Delete this row? This cannot be undone.</p>
         <div className="setup-delete-actions">
-          <button className="setup-form-modal__btn setup-form-modal__btn--cancel" onClick={() => setConfirmDelete(null)}>Cancel</button>
-          <button className="setup-form-modal__btn setup-form-modal__btn--danger" disabled={busy} onClick={handleDelete}>
-            {busy ? "Deleting..." : "Delete"}
-          </button>
+          <Button variant="secondary" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+          <Button variant="danger" loading={busy} onClick={handleDelete}>Delete</Button>
         </div>
       </Modal>
     </div>

@@ -32,12 +32,10 @@ export default function SetupFormModal({ show, mode, tableName, fields, draft, b
           </Form.Group>
         ))}
         <div className="setup-form-modal__actions">
-          <button className="setup-form-modal__btn setup-form-modal__btn--cancel" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="setup-form-modal__btn setup-form-modal__btn--save" disabled={busy} onClick={onSave}>
-            {busy ? "Saving..." : mode === "add" ? "Add" : "Save"}
-          </button>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" loading={busy} onClick={onSave}>
+            {mode === "add" ? "Add" : "Save"}
+          </Button>
         </div>
       </div>
     </Modal>

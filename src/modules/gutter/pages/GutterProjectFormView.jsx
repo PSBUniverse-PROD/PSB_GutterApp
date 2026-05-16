@@ -318,13 +318,13 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
           </div>
         </div>
         <div className="d-flex flex-wrap gap-2 align-items-center">
-          <button className="btn btn-outline-success btn-sm fw-semibold" onClick={saveProject} disabled={saving}>
-            {saving ? "Saving..." : "Save Project"}
-          </button>
+          <Button variant="success" onClick={saveProject} disabled={saving} loading={saving}>
+            Save Project
+          </Button>
           {isEdit && (
             <Link href={`/gutter/${projectId}/work-order`} className="btn btn-outline-primary btn-sm fw-semibold">Work Order</Link>
           )}
-          <button className="btn btn-outline-secondary btn-sm fw-semibold" onClick={() => window.print()}>Print / PDF</button>
+          <Button variant="secondary" onClick={() => window.print()}>Print / PDF</Button>
         </div>
       </div>
 

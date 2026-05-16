@@ -264,26 +264,6 @@
   color: #94a3b8;
 }
 
-.setup-toolbar__add-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  border: none;
-  background: var(--psb-action-add);
-  color: #fff;
-  padding: 5px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background var(--psb-transition-150);
-}
-
-.setup-toolbar__add-btn:hover {
-  background: var(--psb-action-add-hover);
-}
-
 /* ─── TableZ Wrapper (compact density overrides) ──────────────────────────── */
 
 .setup-grid-wrap {
@@ -342,53 +322,6 @@
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid var(--psb-border);
-}
-
-.setup-form-modal__btn {
-  border: none;
-  padding: 6px 14px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background var(--psb-transition-150);
-}
-
-.setup-form-modal__btn--cancel {
-  background: #f1f5f9;
-  color: var(--psb-text);
-}
-
-.setup-form-modal__btn--cancel:hover {
-  background: #e2e8f0;
-}
-
-.setup-form-modal__btn--save {
-  background: var(--psb-brand);
-  color: #fff;
-}
-
-.setup-form-modal__btn--save:hover {
-  background: #174d6b;
-}
-
-.setup-form-modal__btn--save:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.setup-form-modal__btn--danger {
-  background: var(--psb-action-delete);
-  color: #fff;
-}
-
-.setup-form-modal__btn--danger:hover {
-  background: var(--psb-action-delete-hover);
-}
-
-.setup-form-modal__btn--danger:disabled {
-  opacity: 0.6;
-  cursor: default;
 }
 
 /* ─── Delete Dialog ───────────────────────────────────────────────────────── */

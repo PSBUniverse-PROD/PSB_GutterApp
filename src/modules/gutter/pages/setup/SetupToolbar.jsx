@@ -2,6 +2,7 @@
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus, faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
+import { Button } from "@/shared/components/ui";
 
 /**
  * SetupToolbar — Compact header bar with table name, record count, search, and add button.
@@ -24,10 +25,10 @@ export default function SetupToolbar({ tableName, recordCount, searchValue, onSe
             onChange={(e) => onSearchChange(e.target.value)}
           />
         </div>
-        <button className="setup-toolbar__add-btn" onClick={onAdd}>
+        <Button variant="success" onClick={onAdd} className="setup-toolbar__add-btn">
           <FontAwesomeIcon icon={faPlus} />
           <span>{addLabel}</span>
-        </button>
+        </Button>
       </div>
     </div>
   );

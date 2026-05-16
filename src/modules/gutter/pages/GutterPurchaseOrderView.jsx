@@ -20,8 +20,9 @@ const formatNumber = (value, fractionDigits = 2) => {
 
 export default function GutterPurchaseOrderView({ projectId, projectData, storedPurchaseOrder }) {
   const header = projectData?.projectHeader || null;
-  const sides = projectData?.projectSides || [];
-  const colors = projectData?.colors || [];
+
+  const sides = useMemo(() => projectData?.projectSides || [], [projectData?.projectSides]);
+  const colors = useMemo(() => projectData?.colors || [], [projectData?.colors]);
 
   const [manualInputs, setManualInputs] = useState(() => {
     const stored = storedPurchaseOrder;
