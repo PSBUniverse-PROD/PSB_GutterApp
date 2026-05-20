@@ -235,7 +235,11 @@ export default function AuthProvider({ children }) {
       }
 
       // Skip redundant cross-tab events when user hasn't changed
-      if (event === "TOKEN_REFRESHED" && sessionUser?.id && sessionUser.id === lastAuthUserIdRef.current) {
+      if (
+        (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") &&
+        sessionUser?.id &&
+        sessionUser.id === lastAuthUserIdRef.current
+      ) {
         return;
       }
 
