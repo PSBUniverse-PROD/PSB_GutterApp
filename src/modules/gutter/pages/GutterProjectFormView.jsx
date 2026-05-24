@@ -335,6 +335,9 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
           {isEdit && (
             <Button variant="outline-primary" onClick={() => router.push(`/gutter/${projectId}/work-order`)}>Work Order</Button>
           )}
+          {isEdit && (
+            <Button variant="outline-primary" onClick={() => router.push(`/gutter/${projectId}/purchase-order`)}>Purchase Order</Button>
+          )}
           <Button variant="secondary" onClick={() => router.push(`/gutter/${projectId}/print`)}>
             <FontAwesomeIcon icon={faPrint} className="me-1" /> Print / PDF
           </Button>

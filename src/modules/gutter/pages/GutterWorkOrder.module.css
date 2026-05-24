@@ -583,4 +583,24 @@
   .woPage {
     padding: 0;
   }
+
+  .woPage button {
+    display: none !important;
+  }
+
+  .woPage input,
+  .woPage select {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    font-size: 0.85rem;
+  }
+
+  .woPage select {
+    padding-right: 0 !important;
+  }
 }

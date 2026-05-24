@@ -2,13 +2,14 @@
 
 import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { Container, Row, Col, Form } from "react-bootstrap";
+import { Container, Form } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faCheck, faPrint, faBoxOpen, faUpRightFromSquare, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+import { faBuilding } from "@fortawesome/free-regular-svg-icons";
 import { Button, toastError, toastSuccess } from "@/shared/components/ui";
 import { savePurchaseOrder } from "../data/gutter.actions";
 import { calculateMaterials } from "../data/gutter.data";
-import styles from "./GutterPurchaseOrder.module.css";
+import styles from "./GutterWorkOrder.module.css";
 
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -19,6 +20,23 @@ const formatNumber = (value, fractionDigits = 2) => {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return "0";
   return numeric.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: fractionDigits });
+};
+
+const toDisplay = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+  return String(value);
+};
+
+const toWholeDisplay = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "0";
+  return String(Math.round(parsed));
+};
+
+const toDecimalDisplay = (value, digits = 2) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "0";
+  return parsed.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: digits });
 };
 
 export default function GutterPurchaseOrderView({ projectId, projectData, storedPurchaseOrder }) {
@@ -107,33 +125,33 @@ export default function GutterPurchaseOrderView({ projectId, projectData, stored
   if (!header || !materials) return <Container className="py-4">Project not found.</Container>;
 
   return (
-    <div className={styles.poPage}>
+    <div className={styles.woPage}>
       {/* ─── Compact Top Header ─── */}
-      <div className={styles.poHeader}>
-        <div className={styles.poHeaderLeft}>
-          <Link href={`/gutter/${projectId}`} className={styles.poBackLink}>
+      <div className={styles.woHeader}>
+        <div className={styles.woHeaderLeft}>
+          <Link href={`/gutter/${projectId}`} className={styles.woBackLink}>
             <FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" />
           </Link>
-          <div className={styles.poHeaderTitle}>
-            <h1 className={styles.poTitle}>Purchase Order</h1>
-            <span className={styles.poSubtitle}>{header.project_name || `PO# ${header.proj_id}`}</span>
+          <div className={styles.woHeaderTitle}>
+            <h1 className={styles.woTitle}>Purchase Order</h1>
+            <span className={styles.woSubtitle}>{header.project_name || `PO# ${header.proj_id}`}</span>
           </div>
-          <div className={styles.poHeaderMeta}>
-            <div className={styles.poMetaItem}>
-              <span className={styles.poMetaLabel}>Customer</span>
-              <span className={styles.poMetaValue}>{header.customer || "--"}</span>
+          <div className={styles.woHeaderMeta}>
+            <div className={styles.woMetaItem}>
+              <span className={styles.woMetaLabel}>PO#</span>
+              <span className={styles.woMetaValue}>{toDisplay(header.proj_id)}</span>
             </div>
-            <div className={styles.poMetaItem}>
-              <span className={styles.poMetaLabel}>Date</span>
-              <span className={styles.poMetaValue}>{header.date || "--"}</span>
+            <div className={styles.woMetaItem}>
+              <span className={styles.woMetaLabel}>Date</span>
+              <span className={styles.woMetaValue}>{toDisplay(header.date)}</span>
             </div>
-            <div className={styles.poMetaItem}>
-              <span className={styles.poMetaLabel}>Address</span>
-              <span className={styles.poMetaValue}>{header.project_address || "--"}</span>
+            <div className={styles.woMetaItem}>
+              <span className={styles.woMetaLabel}>Address</span>
+              <span className={styles.woMetaValue}>{toDisplay(header.project_address)}</span>
             </div>
           </div>
         </div>
-        <div className={styles.poHeaderActions}>
+        <div className={styles.woHeaderActions}>
           {header.request_link && (
             <Button variant="secondary" onClick={() => window.open(header.request_link, "_blank", "noopener,noreferrer")}>
               <FontAwesomeIcon icon={faUpRightFromSquare} className="me-1" /> Source Sheet
@@ -149,123 +167,139 @@ export default function GutterPurchaseOrderView({ projectId, projectData, stored
       </div>
 
       {/* ─── Workspace Body ─── */}
-      <div className={styles.poBody}>
-        {/* ─── Main Content ─── */}
-        <div className={styles.poMain}>
+      <div className={styles.woBody}>
+        {/* ─── Main Content (Left) ─── */}
+        <div className={styles.woMain}>
 
-          {/* Material Fields */}
-          <div className={styles.poSection}>
-            <div className={styles.poSectionHeader}>
-              <FontAwesomeIcon icon={faBoxOpen} /> Material Fields
+          {/* Project & Configuration */}
+          <div className={styles.woSection}>
+            <div className={styles.woSectionHeader}>
+              <FontAwesomeIcon icon={faBuilding} /> Project &amp; Configuration
             </div>
-            <div className={styles.poSectionBody}>
-              <div className={styles.poMaterialList}>
-                <div className={`${styles.poMaterialRow} ${styles.poMaterialRowHeader}`}>
-                  <span className={styles.poMaterialName}>Field</span>
-                  <span className={styles.poMaterialQty}>Qty / Value</span>
-                  <span className={styles.poMaterialColor}>Color / Note</span>
+            <div className={styles.woSectionBody}>
+              <div className={styles.woInfoGrid}>
+                <div className={styles.woCompanyBlock}>
+                  <strong className={styles.woCompanyName}>{header.customer || "--"}</strong>
+                  <span className={styles.woCompanyDetail}>{header.project_name || "--"}</span>
+                  <span className={styles.woCompanyDetail}>{header.project_address || "--"}</span>
                 </div>
-                <div className={styles.poMaterialRow}>
-                  <span className={styles.poMaterialName}>K-Style Gutter Color</span>
-                  <span className={styles.poMaterialQty}>--</span>
-                  <span className={styles.poMaterialColor}>{materials.colors.kStyleGutterColor}</span>
-                </div>
-                <div className={styles.poMaterialRow}>
-                  <span className={styles.poMaterialName}>Downspout Color</span>
-                  <span className={styles.poMaterialQty}>--</span>
-                  <span className={styles.poMaterialColor}>{materials.colors.downspoutColor}</span>
-                </div>
-                <div className={styles.poMaterialRow}>
-                  <span className={styles.poMaterialName}>Gutter Coil 15&quot;</span>
-                  <span className={styles.poMaterialQty}>{formatNumber(materials.gutterCoil.totalFt)} ft</span>
-                  <span className={styles.poMaterialColor}>{materials.gutterCoil.color} ({formatNumber(materials.gutterCoil.totalLbs, 3)} lbs)</span>
-                </div>
-                <div className={styles.poMaterialRow}>
-                  <span className={styles.poMaterialName}>Right End Caps - 6&quot; K-Style</span>
-                  <span className={styles.poMaterialQty}>{formatNumber(materials.endCaps.right.qty)}</span>
-                  <span className={styles.poMaterialColor}>{materials.endCaps.right.color}</span>
-                </div>
-                <div className={styles.poMaterialRow}>
-                  <span className={styles.poMaterialName}>Left End Caps - 6&quot; K-Style</span>
-                  <span className={styles.poMaterialQty}>{formatNumber(materials.endCaps.left.qty)}</span>
-                  <span className={styles.poMaterialColor}>{materials.endCaps.left.color}</span>
-                </div>
-                <div className={styles.poMaterialRow}>
-                  <span className={styles.poMaterialName}>3&quot; x 4&quot; Downpipe 10&apos;ft</span>
-                  <span className={styles.poMaterialQty}>{formatNumber(materials.downpipe.qty)}</span>
-                  <span className={styles.poMaterialColor}>{materials.downpipe.color}</span>
-                </div>
-                <div className={styles.poMaterialRow}>
-                  <span className={styles.poMaterialName}>3&quot; x 4&quot; - 6&quot; One Piece Offset</span>
-                  <span className={styles.poMaterialQty}>{formatNumber(materials.onePieceOffset.qty)}</span>
-                  <span className={styles.poMaterialColor}>{materials.onePieceOffset.color}</span>
-                </div>
-                <div className={styles.poMaterialRow}>
-                  <span className={styles.poMaterialName}>3&quot; x 4&quot; -(A) Elbow</span>
-                  <span className={styles.poMaterialQty}>{formatNumber(materials.elbow.qty)}</span>
-                  <span className={styles.poMaterialColor}>{materials.elbow.color}</span>
-                </div>
-                <div className={styles.poMaterialRow}>
-                  <span className={styles.poMaterialName}>Spray Paint for Touch up</span>
-                  <span className={styles.poMaterialQty}>
-                    <Form.Control size="sm" type="number" min="0" step="1" className={styles.poInlineInput} value={manualInputs.sprayPaintQty} onChange={(e) => handleManualInputChange("sprayPaintQty", e.target.value)} />
-                  </span>
-                  <span className={styles.poMaterialColor}>{materials.sprayPaint.color}</span>
-                </div>
-                <div className={styles.poMaterialRow}>
-                  <span className={styles.poMaterialName}>#8 x 1/2&quot; Zip Screws</span>
-                  <span className={styles.poMaterialQty}>
-                    <Form.Control size="sm" type="number" min="0" step="1" className={styles.poInlineInput} value={manualInputs.zipScrewsQty} onChange={(e) => handleManualInputChange("zipScrewsQty", e.target.value)} />
-                  </span>
-                  <span className={styles.poMaterialColor}>{materials.zipScrews.color}</span>
-                </div>
-                <div className={styles.poMaterialRow}>
-                  <span className={styles.poMaterialName}>#8 x 1/2&quot; Zip Screws</span>
-                  <span className={styles.poMaterialQty}>{formatNumber(materials.internal.internalScrews)}</span>
-                  <span className={styles.poMaterialColor}>Internal Use Only</span>
+                <div className={styles.woConfigGrid}>
+                  <div className={styles.woConfigItem}>
+                    <span className={styles.woConfigLabel}>K-Style Gutter Color</span>
+                    <span className={styles.woConfigValue}>{materials.colors.kStyleGutterColor || "--"}</span>
+                  </div>
+                  <div className={styles.woConfigItem}>
+                    <span className={styles.woConfigLabel}>Downspout Color</span>
+                    <span className={styles.woConfigValue}>{materials.colors.downspoutColor || "--"}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Material Summary */}
+          <div className={styles.woSection}>
+            <div className={styles.woSectionHeader}>
+              <FontAwesomeIcon icon={faBoxOpen} /> Material Summary
+            </div>
+            <div className={styles.woSectionBody}>
+              {/* Gutter Coil */}
+              <table className={styles.woTable}>
+                <thead>
+                  <tr><th>Item</th><th>FT</th><th>LBS</th><th>Color</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Gutter Coil 15&quot;</td>
+                    <td>{toDecimalDisplay(materials.gutterCoil.totalFt)}</td>
+                    <td>{toDecimalDisplay(materials.gutterCoil.totalLbs)}</td>
+                    <td>{materials.gutterCoil.color || "--"}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* Parts */}
+              <table className={styles.woTable} style={{ marginTop: "10px" }}>
+                <thead>
+                  <tr><th>Item</th><th>QTY</th><th>Color</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Right End Caps - 6&quot; K-Style</td><td>{toWholeDisplay(materials.endCaps.right.qty)}</td><td>{materials.endCaps.right.color || "--"}</td></tr>
+                  <tr><td>Left End Caps - 6&quot; K-Style</td><td>{toWholeDisplay(materials.endCaps.left.qty)}</td><td>{materials.endCaps.left.color || "--"}</td></tr>
+                  <tr><td>3&quot; x 4&quot; Downpipe 10&apos;ft</td><td>{toWholeDisplay(materials.downpipe.qty)}</td><td>{materials.downpipe.color || "--"}</td></tr>
+                  <tr><td>3&quot; x 4&quot; - 6&quot; One Piece Offset</td><td>{toWholeDisplay(materials.onePieceOffset.qty)}</td><td>{materials.onePieceOffset.color || "--"}</td></tr>
+                  <tr><td>3&quot; x 4&quot; -(A) Elbow</td><td>{toWholeDisplay(materials.elbow.qty)}</td><td>{materials.elbow.color || "--"}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Spray Paint */}
+          <div className={styles.woSection}>
+            <div className={styles.woSectionHeader}>
+              <FontAwesomeIcon icon={faBoxOpen} /> Spray Paint for Touch up
+            </div>
+            <div className={styles.woSectionBody}>
+              <table className={styles.woTable}>
+                <thead>
+                  <tr><th>Item</th><th>QTY</th><th>Color</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Spray Paint for Touch up</td>
+                    <td><Form.Control size="sm" type="number" min="0" step="1" style={{ width: 60, display: "inline-block" }} value={manualInputs.sprayPaintQty} onChange={(e) => handleManualInputChange("sprayPaintQty", e.target.value)} /></td>
+                    <td>{materials.sprayPaint.color || "--"}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Zip Screws */}
+          <div className={styles.woSection}>
+            <div className={styles.woSectionHeader}>
+              <FontAwesomeIcon icon={faBoxOpen} /> #8 x 1/2&quot; Zip Screws
+            </div>
+            <div className={styles.woSectionBody}>
+              <table className={styles.woTable}>
+                <thead>
+                  <tr><th>Item</th><th>QTY</th><th>Color</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>#8 x 1/2&quot; Zip Screws</td>
+                    <td><Form.Control size="sm" type="number" min="0" step="1" style={{ width: 60, display: "inline-block" }} value={manualInputs.zipScrewsQty} onChange={(e) => handleManualInputChange("zipScrewsQty", e.target.value)} /></td>
+                    <td>{materials.zipScrews.color || "--"}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
-        {/* ─── Sidebar ─── */}
-        <div className={styles.poSidebar}>
+        {/* ─── Sidebar (Right) ─── */}
+        <div className={styles.woSidebar}>
 
           {/* Internal Information */}
-          <div className={`${styles.poSection} ${styles.poSectionInternal}`}>
-            <div className={`${styles.poSectionHeader} ${styles.poSectionHeaderDanger}`}>
+          <div className={styles.woSection} style={{ borderColor: "var(--psb-status-failed-border)" }}>
+            <div className={styles.woSectionHeader} style={{ color: "var(--psb-action-delete)" }}>
               <FontAwesomeIcon icon={faTriangleExclamation} /> Internal (Do Not Print)
             </div>
-            <div className={styles.poSectionBody}>
-              <div className={styles.poInternalList}>
-                <div className={styles.poInternalRow}>
-                  <span className={styles.poInternalLabel}>Total Downspouts</span>
-                  <span className={styles.poInternalValue}>{formatNumber(materials.internal.totalDownspouts)}</span>
-                </div>
-                <div className={styles.poInternalRow}>
-                  <span className={styles.poInternalLabel}>Total Endcaps</span>
-                  <span className={styles.poInternalValue}>{formatNumber(materials.internal.totalEndcaps)}</span>
-                </div>
-                <div className={styles.poInternalRow}>
-                  <span className={styles.poInternalLabel}>3&quot; x 4&quot; Rectangular Outlets</span>
-                  <span className={styles.poInternalValue}>{formatNumber(materials.internal.rectangularOutlets)}</span>
-                </div>
-                <div className={styles.poInternalRow}>
-                  <span className={styles.poInternalLabel}>Qty of Screws (Internal)</span>
-                  <span className={styles.poInternalValue}>{formatNumber(materials.internal.internalScrews)}</span>
-                </div>
-                <div className={styles.poInternalRow}>
-                  <span className={styles.poInternalLabel}>6&quot; Hidden Hangers</span>
-                  <span className={styles.poInternalValue}>{formatNumber(materials.internal.hiddenHangers)}</span>
-                </div>
-                <div className={styles.poInternalRow}>
-                  <span className={styles.poInternalLabel}>Box Metal Screws (Hangers)</span>
-                  <span className={styles.poInternalValue}>
-                    <Form.Control size="sm" type="number" min="0" step="1" className={styles.poInlineInput} value={manualInputs.boxScrewsQty} onChange={(e) => handleManualInputChange("boxScrewsQty", e.target.value)} />
-                  </span>
-                </div>
-              </div>
+            <div className={styles.woSectionBody}>
+              <table className={styles.woTable}>
+                <tbody>
+                  <tr><td>Total Downspouts</td><td>{toWholeDisplay(materials.internal.totalDownspouts)}</td></tr>
+                  <tr><td>Total Endcaps</td><td>{toWholeDisplay(materials.internal.totalEndcaps)}</td></tr>
+                  <tr><td>3&quot; x 4&quot; Rectangular Outlets</td><td>{toWholeDisplay(materials.internal.rectangularOutlets)}</td></tr>
+                  <tr><td>Qty of Screws (Internal)</td><td>{toWholeDisplay(materials.internal.internalScrews)}</td></tr>
+                  <tr><td>6&quot; Hidden Hangers</td><td>{toWholeDisplay(materials.internal.hiddenHangers)}</td></tr>
+                  <tr><td>#8 x 1/2&quot; Zip Screws (Internal)</td><td>{toWholeDisplay(materials.internal.internalScrews)}</td></tr>
+                  <tr>
+                    <td>Box Metal Screws (Hangers)</td>
+                    <td><Form.Control size="sm" type="number" min="0" step="1" style={{ width: 60, display: "inline-block" }} value={manualInputs.boxScrewsQty} onChange={(e) => handleManualInputChange("boxScrewsQty", e.target.value)} /></td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

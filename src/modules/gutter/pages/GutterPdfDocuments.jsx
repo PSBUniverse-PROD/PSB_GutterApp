@@ -1,13 +1,13 @@
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 import { formatCurrency } from "../data/gutter.data";
 
-/* ─── Helpers ─────────────────────────────────────────────────────────────── */
+/* --- Helpers ---------------------------------------------------------------- */
 const toDisplay = (v) => (v === null || v === undefined || v === "") ? "—" : String(v);
 const fmtCurrency = (v) => formatCurrency(v);
 const fmtNum = (v) => (v === null || v === undefined) ? "—" : String(Number(v).toFixed(2));
 const fmtInt = (v) => (v === null || v === undefined) ? "—" : String(Math.round(Number(v)));
 
-/* ─── Shared Styles ───────────────────────────────────────────────────────── */
+/* --- Shared Styles ---------------------------------------------------------- */
 const s = StyleSheet.create({
   page: { padding: 40, fontSize: 9, fontFamily: "Helvetica", color: "#1a1a1a" },
   // Header
@@ -50,7 +50,7 @@ const s = StyleSheet.create({
   note: { fontSize: 9, marginTop: 4 },
 });
 
-/* ─── Reusable sub-components ─────────────────────────────────────────────── */
+/* --- Reusable sub-components ------------------------------------------------ */
 function DocHeader({ leftTitle, leftSubtitle, leftSub2, rightMeta }) {
   return (
     <>
@@ -88,9 +88,9 @@ function TableRow({ cells, widths, header = false, style }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* ==========================================================================
    QUOTE PDF DOCUMENT
-   ═══════════════════════════════════════════════════════════════════════════ */
+   ========================================================================== */
 export function QuotePdf({ header, quoteResult, companyProfile, displayDate, selectedManufacturerName, selectedLeafGuardName, sectionBreakdownRows, extras }) {
   const pricing = quoteResult?.pricing;
   if (!pricing) return (<Document><Page size="LETTER" style={s.page}><Text>No pricing data.</Text></Page></Document>);
@@ -224,11 +224,12 @@ export function QuotePdf({ header, quoteResult, companyProfile, displayDate, sel
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* ==========================================================================
    WORK ORDER PDF DOCUMENT
-   ═══════════════════════════════════════════════════════════════════════════ */
-export function WorkOrderPdf({ header, sides, materials, companyProfile }) {
+   ========================================================================== */
+export function WorkOrderPdf({ header, sides, materials, companyProfile, zipScrewsBags, workOrderData }) {
   const matW = ["45%", "20%", "35%"];
+  const wo = workOrderData || {};
 
   return (
     <Document>
@@ -283,10 +284,50 @@ export function WorkOrderPdf({ header, sides, materials, companyProfile }) {
             ['3" x 4" Downpipe 10\'ft', fmtInt(materials?.downpipe?.qty), materials?.downpipe?.color || "—"],
             ['3" x 4" - 6" One Piece Offset', fmtInt(materials?.onePieceOffset?.qty), materials?.onePieceOffset?.color || "—"],
             ['3" x 4" -(A) Elbow', fmtInt(materials?.elbow?.qty), materials?.elbow?.color || "—"],
-            ['#8 x 1/2" Zip Screws', fmtInt(materials?.zipScrews?.qty), materials?.zipScrews?.color || "—"],
             ['6" Hidden Hangers', fmtInt(materials?.internal?.hiddenHangers), "Auto"],
           ].map(([item, qty, color]) => (
             <TableRow key={item} cells={[item, qty, color]} widths={matW} />
+          ))}
+
+        </View>
+
+        {/* Installer Info */}
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Installer</Text>
+          {[
+            ["Name", wo.installerName || ""],
+            ["Install Date", wo.installDate || ""],
+            ["Signature", wo.installerSignature || ""],
+            ["Signature Date", wo.signatureDate || ""],
+          ].map(([label, value]) => (
+            <View key={label} style={s.detailItem}>
+              <Text style={s.detailLabel}>{label}</Text>
+              <Text style={s.detailValue}>{value || "_________________"}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* DSP Assignments */}
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>DSP Assignments</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
+            {(wo.downspoutAssignments || []).map((val, i) => (
+              val ? (
+                <View key={i} style={{ flexDirection: "row", width: "48%", marginBottom: 3 }}>
+                  <Text style={[s.detailLabel, { width: 50 }]}>DSP#{i + 1}</Text>
+                  <Text style={s.detailValue}>{val}</Text>
+                </View>
+              ) : null
+            ))}
+          </View>
+        </View>
+
+        {/* Zip Screws */}
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>#8 x 1/2&quot; Zip Screws (100/bag)</Text>
+          <TableRow header cells={["Item", "QTY", "Color"]} widths={matW} />
+          {(zipScrewsBags && zipScrewsBags.length > 0 ? zipScrewsBags : [{ qty: materials?.zipScrews?.qty || 0, color: materials?.zipScrews?.color || "—" }]).map((bag, i) => (
+            <TableRow key={`zip-${i}`} cells={[`Bag ${i + 1}`, String(bag.qty || 0), bag.color || "—"]} widths={matW} />
           ))}
         </View>
 
@@ -304,16 +345,20 @@ export function WorkOrderPdf({ header, sides, materials, companyProfile }) {
         {/* Notes */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>Installer Notes</Text>
-          <View style={s.notesBox} />
+          {wo.notes ? (
+            <Text style={s.note}>{wo.notes}</Text>
+          ) : (
+            <View style={s.notesBox} />
+          )}
         </View>
       </Page>
     </Document>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* ==========================================================================
    PURCHASE ORDER PDF DOCUMENT
-   ═══════════════════════════════════════════════════════════════════════════ */
+   ========================================================================== */
 export function PurchaseOrderPdf({ header, materials, storedPurchaseOrder }) {
   const po = storedPurchaseOrder || {};
   const getValue = (poField, matPath) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { Container, Row, Col, Form } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -43,6 +43,7 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
     signatureDate: "",
     downspoutAssignments: Array.from({ length: MAX_DSP_ROWS }, () => ""),
     gutterSize: "6 inch K-Style",
+    zipScrewsBags: [{ qty: "1", color: "" }],
   });
 
   const colorById = useMemo(() => {
@@ -69,8 +70,10 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
 
   const materials = useMemo(() => {
     if (!sections.length) return null;
-    return calculateMaterials({ sections });
-  }, [sections]);
+    const totalZip = workOrder.zipScrewsBags
+      .reduce((sum, r) => sum + (parseInt(r.qty, 10) || 0), 0);
+    return calculateMaterials({ sections, zipScrewsQty: totalZip });
+  }, [sections, workOrder.zipScrewsBags]);
 
   const sectionRows = useMemo(() => {
     return sections.map((sec, i) => ({
@@ -88,6 +91,28 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
 
   const updateField = (field, value) => setWorkOrder((prev) => ({ ...prev, [field]: value }));
 
+  const updateZipScrewsBag = (index, field, value) => {
+    setWorkOrder((prev) => {
+      const bags = [...prev.zipScrewsBags];
+      bags[index] = { ...bags[index], [field]: value };
+      return { ...prev, zipScrewsBags: bags };
+    });
+  };
+
+  const addZipScrewsBag = () => {
+    setWorkOrder((prev) => ({
+      ...prev,
+      zipScrewsBags: [...prev.zipScrewsBags, { qty: "1", color: "" }],
+    }));
+  };
+
+  const removeZipScrewsBag = (index) => {
+    setWorkOrder((prev) => ({
+      ...prev,
+      zipScrewsBags: prev.zipScrewsBags.filter((_, i) => i !== index),
+    }));
+  };
+
   const updateDownspoutAssignment = (index, value) => {
     setWorkOrder((prev) => {
       const next = [...(prev.downspoutAssignments || [])];
@@ -95,6 +120,33 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
       return { ...prev, downspoutAssignments: next };
     });
   };
+
+  const handlePrintPdf = useCallback(async () => {
+    const { pdf } = await import("@react-pdf/renderer");
+    const { WorkOrderPdf } = await import("./GutterPdfDocuments");
+    const doc = (
+      <WorkOrderPdf
+        header={header}
+        sides={sides}
+        materials={materials}
+        zipScrewsBags={workOrder.zipScrewsBags}
+        workOrderData={workOrder}
+        companyProfile={{ name: manufacturerName || "Company", email: "", phone: "" }}
+      />
+    );
+    const blob = await pdf(doc).toBlob();
+    const url = URL.createObjectURL(blob);
+    const customer = (header.customer || "").replace(/[^a-zA-Z0-9]/g, "_");
+    const project = (header.project_name || "").replace(/[^a-zA-Z0-9]/g, "_");
+    const filename = ["WorkOrder", customer, project].filter(Boolean).join("_") + ".pdf";
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [header, sides, materials, workOrder, manufacturerName]);
 
   if (!header) return <Container className="py-4">Project not found.</Container>;
 
@@ -126,8 +178,8 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
           </div>
         </div>
         <div className={styles.woHeaderActions}>
-          <Button variant="secondary" onClick={() => window.open(`/gutter/${projectId}/print`, "_blank")}>
-            <FontAwesomeIcon icon={faPrint} className="me-1" /> Print
+          <Button variant="secondary" onClick={handlePrintPdf}>
+            <FontAwesomeIcon icon={faPrint} className="me-1" /> Print / PDF
           </Button>
         </div>
       </div>
@@ -242,7 +294,6 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
                 <tbody>
                   <tr><td>Right End Caps - 6&quot; K-Style</td><td>{toWholeDisplay(materials?.endCaps?.right?.qty)}</td><td>{materials?.endCaps?.right?.color || "--"}</td></tr>
                   <tr><td>Left End Caps - 6&quot; K-Style</td><td>{toWholeDisplay(materials?.endCaps?.left?.qty)}</td><td>{materials?.endCaps?.left?.color || "--"}</td></tr>
-                  <tr><td>#8 x 1/2&quot; Zip Screws</td><td>{toWholeDisplay(materials?.zipScrews?.qty)}</td><td>{materials?.zipScrews?.color || "--"}</td></tr>
                   <tr><td>3&quot; x 4&quot; Downpipe 10&apos;ft</td><td>{toWholeDisplay(materials?.downpipe?.qty)}</td><td>{materials?.downpipe?.color || "--"}</td></tr>
                   <tr><td>3&quot; x 4&quot; - 6&quot; One Piece Offset</td><td>{toWholeDisplay(materials?.onePieceOffset?.qty)}</td><td>{materials?.onePieceOffset?.color || "--"}</td></tr>
                   <tr><td>3&quot; x 4&quot; -(A) Elbow</td><td>{toWholeDisplay(materials?.elbow?.qty)}</td><td>{materials?.elbow?.color || "--"}</td></tr>
@@ -312,6 +363,28 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Zip Screws */}
+          <div className={styles.woSection}>
+            <div className={styles.woSectionHeader}>
+              <FontAwesomeIcon icon={faBoxOpen} /> #8 x 1/2&quot; Zip Screws <span style={{ fontWeight: 400, fontSize: "0.8rem", color: "#6c757d" }}>(100 per bag)</span>
+            </div>
+            <div className={styles.woSectionBody}>
+              {workOrder.zipScrewsBags.map((row, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                  <Form.Control size="sm" type="number" min="1" step="1" style={{ width: 70 }} placeholder="Bags" value={row.qty} onChange={(e) => updateZipScrewsBag(i, "qty", e.target.value)} />
+                  <Form.Select size="sm" style={{ width: 160 }} value={row.color} onChange={(e) => updateZipScrewsBag(i, "color", e.target.value)}>
+                    <option value="">-- Color --</option>
+                    {colors.map((c) => <option key={c.color_id} value={c.name}>{c.name}</option>)}
+                  </Form.Select>
+                  {workOrder.zipScrewsBags.length > 1 && (
+                    <button type="button" className="btn btn-sm btn-outline-danger py-0 px-1" onClick={() => removeZipScrewsBag(i)}>&times;</button>
+                  )}
+                </div>
+              ))}
+              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={addZipScrewsBag}>+ Add Color</button>
             </div>
           </div>
 
