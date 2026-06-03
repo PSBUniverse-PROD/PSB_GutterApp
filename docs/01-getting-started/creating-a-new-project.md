@@ -21,32 +21,35 @@ Daily development should happen in the app repo, not in a core clone.
 
 Create a new repository in your org (example: `PSB_Connect`).
 
-Important: create the repo as EMPTY (no README, no .gitignore, no license) if you want first push to succeed directly.
-
 Recommended options:
 1. Use a GitHub template based on core.
-2. Or initialize from a local core clone and push as the first commit.
+2. Or bootstrap from a local clone with the app repo as `origin` and core as upstream.
 
-If using local push flow:
+If using local bootstrap flow:
 
 ```bash
-git clone https://github.com/PSBUniverse-DEV/PSBUniverse-core.git PSB_Connect
+git clone https://github.com/PSBUniverse-DEV/PSB_Connect.git
 cd PSB_Connect
-git remote rename origin core-origin
-git remote add origin https://github.com/PSBUniverse-DEV/PSB_Connect.git
+git remote add core https://github.com/PSBUniverse-DEV/PSBUniverse-core.git
+git fetch core
+```
+
+If your app repo is EMPTY (no commits yet):
+
+```bash
+git checkout -b main core/main
 git push -u origin main
 ```
 
-If `git push` fails with `fetch first` (non-fast-forward), the remote already has its own commit history (usually an auto-created README).
-
-Run this one-time reconciliation flow:
+If your app repo already has a first commit (README/.gitignore/license):
 
 ```bash
-git pull origin main --allow-unrelated-histories --no-rebase
-# if README.md conflicts, keep the core version:
-git checkout --ours README.md
+git checkout main
+git merge core/main --allow-unrelated-histories -m "Merge core baseline into app repo"
+# if README.md conflicts, keep core version:
+git checkout --theirs README.md
 git add README.md
-git commit -m "Merge origin/main bootstrap commit into core-based history"
+git commit --no-edit
 git push -u origin main
 ```
 
@@ -54,14 +57,15 @@ git push -u origin main
 
 ## Step 2: Configure Upstream Core as Read-Only
 
-From the new app repo:
+From the new app repo (after Step 1):
 
 ```bash
-git remote add core https://github.com/PSBUniverse-DEV/PSBUniverse-core.git
 git remote set-url --push core no_push_allowed
 git fetch core
 git branch core-main core/main
 ```
+
+If `core-main` already exists, skip the last line.
 
 Verify:
 
