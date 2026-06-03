@@ -364,6 +364,7 @@ console.log(`    ${fs.existsSync(path.join(ROOT, filePaths.rewrites)) ? "✅" : 
 
 console.log();
 console.log(`  Manual steps remaining:`);
+console.log(`    ☐ Run .\\scripts\\setup.ps1 (required to unlock your module folder in VS Code)`);
 console.log(`    ☐ Open ${filePaths.index} — set module_key, icon, group_name, order`);
 console.log(`    ☐ DB: psb_s_application → ensure your app exists`);
 console.log(`    ☐ DB: psb_s_appcard → add card with route_path = "${routePath}"`);
