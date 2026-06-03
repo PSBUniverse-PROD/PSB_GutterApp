@@ -21,6 +21,8 @@ Daily development should happen in the app repo, not in a core clone.
 
 Create a new repository in your org (example: `PSB_Connect`).
 
+Important: create the repo as EMPTY (no README, no .gitignore, no license) if you want first push to succeed directly.
+
 Recommended options:
 1. Use a GitHub template based on core.
 2. Or initialize from a local core clone and push as the first commit.
@@ -32,6 +34,19 @@ git clone https://github.com/PSBUniverse-DEV/PSBUniverse-core.git PSB_Connect
 cd PSB_Connect
 git remote rename origin core-origin
 git remote add origin https://github.com/PSBUniverse-DEV/PSB_Connect.git
+git push -u origin main
+```
+
+If `git push` fails with `fetch first` (non-fast-forward), the remote already has its own commit history (usually an auto-created README).
+
+Run this one-time reconciliation flow:
+
+```bash
+git pull origin main --allow-unrelated-histories --no-rebase
+# if README.md conflicts, keep the core version:
+git checkout --ours README.md
+git add README.md
+git commit -m "Merge origin/main bootstrap commit into core-based history"
 git push -u origin main
 ```
 
