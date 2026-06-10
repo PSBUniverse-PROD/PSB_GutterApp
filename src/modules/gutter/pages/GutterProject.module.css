@@ -111,7 +111,7 @@
 
 .gpBody {
   display: grid;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: 1fr 460px;
   gap: 10px;
   align-items: start;
 }

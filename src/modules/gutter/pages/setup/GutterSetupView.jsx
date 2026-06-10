@@ -29,9 +29,11 @@ const TABLE_DEFS = [
     pk: "color_id",
     columns: [
       { key: "name", label: "Color Name", sortable: true },
+      { key: "manufacturer_id", label: "Manufacturer", sortable: true },
     ],
     fields: [
       { key: "name", label: "Color Name", required: true },
+      { key: "manufacturer_id", label: "Manufacturer", type: "select", required: true, optionsKey: "manufacturers" },
     ],
   },
   {
@@ -106,6 +108,49 @@ export default function GutterSetupView({ setup = {} }) {
   const [searchValue, setSearchValue] = useState("");
 
   const tableDef = useMemo(() => TABLE_DEFS.find((t) => t.key === activeTab), [activeTab]);
+
+  const manufacturers = useMemo(
+    () => (Array.isArray(setup.manufacturers) ? setup.manufacturers : []),
+    [setup.manufacturers],
+  );
+
+  // Build columns with closure-fresh lookups (e.g. manufacturer name on Colors).
+  const columns = useMemo(() => {
+    if (!tableDef) return [];
+    if (activeTab === "colors") {
+      const mfgById = new Map(manufacturers.map((m) => [m.manufacturer_id, m]));
+      return [
+        { key: "name", label: "Color Name", sortable: true },
+        {
+          key: "manufacturer_id",
+          label: "Manufacturer",
+          sortable: true,
+          render: (row) => mfgById.get(row.manufacturer_id)?.name || "—",
+        },
+      ];
+    }
+    return tableDef.columns;
+  }, [tableDef, activeTab, manufacturers]);
+
+  // Resolve select field options from the current setup data.
+  const fields = useMemo(() => {
+    if (!tableDef) return [];
+    if (activeTab === "colors") {
+      return tableDef.fields.map((f) => {
+        if (f.type === "select" && f.optionsKey === "manufacturers") {
+          return {
+            ...f,
+            options: manufacturers.map((m) => ({
+              value: m.manufacturer_id,
+              label: m.name,
+            })),
+          };
+        }
+        return f;
+      });
+    }
+    return tableDef.fields;
+  }, [tableDef, activeTab, manufacturers]);
 
   const rows = useMemo(() => {
     const data = setup[activeTab];
@@ -183,6 +228,10 @@ export default function GutterSetupView({ setup = {} }) {
       tableDef.fields.forEach((f) => {
         const val = draft[f.key];
         if (f.type === "number") {
+          payload[f.key] = val === "" || val == null ? null : Number(val);
+        } else if (f.type === "select") {
+          // Foreign-key selects: send as a number (or null if unset) so it
+          // serializes correctly to the DB.
           payload[f.key] = val === "" || val == null ? null : Number(val);
         } else {
           payload[f.key] = String(val ?? "").trim();
@@ -269,7 +318,7 @@ export default function GutterSetupView({ setup = {} }) {
           <div className="setup-grid-wrap">
             <TableZ
               data={filteredRows}
-              columns={tableDef.columns}
+              columns={columns}
               rowIdKey={tableDef.pk}
               actions={actions}
               hideSearch
@@ -284,7 +333,7 @@ export default function GutterSetupView({ setup = {} }) {
         show={!!modalMode}
         mode={modalMode}
         tableName={singularName}
-        fields={tableDef?.fields}
+        fields={fields}
         draft={draft}
         busy={busy}
         onDraftChange={handleDraftChange}

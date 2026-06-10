@@ -246,8 +246,8 @@ export function WorkOrderPdf({ header, sides, materials, companyProfile, zipScre
           leftSubtitle={companyProfile.email}
           leftSub2={companyProfile.phone}
           rightMeta={[
-            { label: "PO#", value: String(header.proj_id) },
-            { label: "Date", value: toDisplay(header.date) },
+            { label: "PO#", value: workOrderData?.work_order_no ? String(workOrderData.work_order_no) : "—" },
+            { label: "Date", value: toDisplay(workOrderData?.work_order_date) },
           ]}
         />
 

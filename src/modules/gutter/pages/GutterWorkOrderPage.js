@@ -1,4 +1,4 @@
-import { loadGutterProject } from "../data/gutter.actions";
+import { loadGutterProject, loadGutterWorkOrder } from "../data/gutter.actions";
 import { getSupabaseAdmin } from "@/core/supabase/admin";
 import GutterWorkOrderView from "./GutterWorkOrderView";
 
@@ -9,6 +9,7 @@ export default async function GutterWorkOrderPage({ params }) {
   const projectId = resolvedParams?.id || null;
 
   const projectData = await loadGutterProject(projectId);
+  const workOrderData = await loadGutterWorkOrder(projectId);
 
   // Resolve manufacturer name from header
   let manufacturerName = null;
@@ -24,6 +25,7 @@ export default async function GutterWorkOrderPage({ params }) {
       projectId={projectId}
       projectData={projectData}
       manufacturerName={manufacturerName}
+      workOrderData={workOrderData}
     />
   );
 }

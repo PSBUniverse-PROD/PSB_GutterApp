@@ -27,7 +27,7 @@ const fmtCurrency = (v) => formatCurrency(v);
 const fmtNum = (v) => (v === null || v === undefined) ? "—" : String(Number(v).toFixed(2));
 const fmtInt = (v) => (v === null || v === undefined) ? "—" : String(Math.round(Number(v)));
 
-export default function GutterPrintView({ projectId, projectData, setup, storedPurchaseOrder }) {
+export default function GutterPrintView({ projectId, projectData, setup, storedPurchaseOrder, workOrderData }) {
   const [activeTab, setActiveTab] = useState("quote");
   const [generating, setGenerating] = useState(false);
 
@@ -140,6 +140,7 @@ export default function GutterPrintView({ projectId, projectData, setup, storedP
             sides={sides}
             materials={materials}
             companyProfile={companyProfile}
+            workOrderData={workOrderData}
           />
         );
       } else {
@@ -169,7 +170,7 @@ export default function GutterPrintView({ projectId, projectData, setup, storedP
     } finally {
       setGenerating(false);
     }
-  }, [generating, activeTab, header, quoteResult, companyProfile, displayDate, selectedManufacturerName, selectedLeafGuardName, sectionBreakdownRows, extras, sides, materials, storedPurchaseOrder]);
+  }, [generating, activeTab, header, quoteResult, companyProfile, displayDate, selectedManufacturerName, selectedLeafGuardName, sectionBreakdownRows, extras, sides, materials, storedPurchaseOrder, workOrderData]);
 
   if (!header) {
     return <div className={styles.printPage}><p>Project not found.</p></div>;
@@ -220,6 +221,7 @@ export default function GutterPrintView({ projectId, projectData, setup, storedP
             sides={sides}
             materials={materials}
             companyProfile={companyProfile}
+            workOrderData={workOrderData}
           />
         )}
         {activeTab === "purchase-order" && (
@@ -435,7 +437,7 @@ function QuoteDocument({ header, project, quoteResult, companyProfile, displayDa
 /* ═══════════════════════════════════════════════════════════════════════════
    WORK ORDER DOCUMENT
    ═══════════════════════════════════════════════════════════════════════════ */
-function WorkOrderDocument({ header, sides, materials, companyProfile }) {
+function WorkOrderDocument({ header, sides, materials, companyProfile, workOrderData }) {
   return (
     <div className={styles.printDocument}>
       {/* Header */}
@@ -446,8 +448,8 @@ function WorkOrderDocument({ header, sides, materials, companyProfile }) {
           <div className={styles.docCompanyDetail}>{companyProfile.phone}</div>
         </div>
         <div className={styles.docHeaderRight}>
-          <div className={styles.docHeaderMeta}><span>PO#</span><strong>{header.proj_id}</strong></div>
-          <div className={styles.docHeaderMeta}><span>Date</span><strong>{toDisplay(header.date)}</strong></div>
+          <div className={styles.docHeaderMeta}><span>PO#</span><strong>{workOrderData?.work_order_no ? String(workOrderData.work_order_no) : String(header.proj_id)}</strong></div>
+          <div className={styles.docHeaderMeta}><span>Date</span><strong>{workOrderData?.work_order_date ? toDisplay(workOrderData.work_order_date) : toDisplay(header.date)}</strong></div>
         </div>
       </div>
 

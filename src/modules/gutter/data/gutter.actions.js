@@ -351,10 +351,145 @@ export async function loadPurchaseOrder(projId) {
   return data || null;
 }
 
-export async function savePurchaseOrder(projId, purchaseOrder) {
+export async function loadGutterWorkOrder(projId) {
   const id = toIntOrNull(projId);
   if (id === null) throw new Error("projId is required");
 
+  const supabase = getSupabaseAdmin();
+
+  const { data: workOrderRow, error: workOrderError } = await supabase
+    .from("gtr_t_workorders")
+    .select("*")
+    .eq("proj_id", id)
+    .maybeSingle();
+
+  if (workOrderError) throw new Error(workOrderError.message);
+  if (!workOrderRow) return null;
+
+  const [{ data: dspRows, error: dspError }, { data: zipRows, error: zipError }] = await Promise.all([
+    supabase
+      .from("gtr_t_workorder_dsp")
+      .select("dsp_no, assigned_value")
+      .eq("workorder_id", workOrderRow.workorder_id)
+      .order("dsp_no", { ascending: true }),
+    supabase
+      .from("gtr_t_workorder_zip_screws")
+      .select("color, qty")
+      .eq("workorder_id", workOrderRow.workorder_id)
+      .order("workorder_zip_screw_id", { ascending: true }),
+  ]);
+
+  if (dspError) throw new Error(dspError.message);
+  if (zipError) throw new Error(zipError.message);
+
+  const assignments = Array.from({ length: 8 }, (_, index) => {
+    const row = (dspRows || []).find((r) => Number(r.dsp_no) === index + 1);
+    return row ? String(row.assigned_value || "") : "";
+  });
+
+  const zipScrewsBags = (zipRows || []).map((row) => ({
+    qty: row.qty !== null && row.qty !== undefined ? String(row.qty) : "1",
+    color: row.color !== null && row.color !== undefined ? String(row.color) : "",
+  }));
+
+  return {
+    ...workOrderRow,
+    downspoutAssignments: assignments,
+    zipScrewsBags,
+  };
+}
+
+export async function saveGutterWorkOrder({ projectId, workOrder }) {
+  const id = toIntOrNull(projectId);
+  if (id === null) throw new Error("projId is required");
+  if (!workOrder || typeof workOrder !== "object") throw new Error("Work order data is required");
+
+  const normalize = (value) => {
+    if (!hasValue(value)) return null;
+    return String(value).trim();
+  };
+
+  const normalized = {
+    installer_name: normalize(workOrder.installerName),
+    installation_date: normalize(workOrder.installDate),
+    signature_name: normalize(workOrder.installerSignature),
+    signature_date: normalize(workOrder.signatureDate),
+    notes: normalize(workOrder.notes),
+  };
+
+  const supabase = getSupabaseAdmin();
+  const now = new Date().toISOString();
+
+  const { data: existing, error: existingError } = await supabase
+    .from("gtr_t_workorders")
+    .select("workorder_id")
+    .eq("proj_id", id)
+    .maybeSingle();
+
+  if (existingError) throw new Error(existingError.message);
+
+  let workorderId;
+
+  if (existing?.workorder_id) {
+    workorderId = existing.workorder_id;
+    const { error } = await supabase
+      .from("gtr_t_workorders")
+      .update({ ...normalized, updated_at: now })
+      .eq("workorder_id", workorderId);
+    if (error) throw new Error("Error saving work order: " + error.message);
+  } else {
+    const { data: inserted, error } = await supabase
+      .from("gtr_t_workorders")
+      .insert({ proj_id: id, ...normalized, created_at: now, updated_at: now })
+      .select("workorder_id")
+      .single();
+    if (error || !inserted?.workorder_id) throw new Error("Error saving work order: " + (error?.message || "Unknown error"));
+    workorderId = inserted.workorder_id;
+  }
+
+  const { error: dspDeleteError } = await supabase
+    .from("gtr_t_workorder_dsp")
+    .delete()
+    .eq("workorder_id", workorderId);
+  if (dspDeleteError) throw new Error("Error clearing work order DSP assignments: " + dspDeleteError.message);
+
+  const dspRows = (Array.isArray(workOrder.downspoutAssignments) ? workOrder.downspoutAssignments : []).map((value, index) => ({
+    workorder_id: workorderId,
+    dsp_no: index + 1,
+    assigned_value: normalize(value),
+  }));
+
+  if (dspRows.length > 0) {
+    const { error } = await supabase.from("gtr_t_workorder_dsp").insert(dspRows);
+    if (error) throw new Error("Error saving work order DSP assignments: " + error.message);
+  }
+
+  const zipRows = (Array.isArray(workOrder.zipScrewsBags) ? workOrder.zipScrewsBags : [])
+    .map((row) => ({
+      workorder_id: workorderId,
+      qty: toIntOrNull(row.qty) ?? 0,
+      color: normalize(row.color),
+    }))
+    .filter((row) => row.qty > 0 || hasValue(row.color));
+
+  const { error: zipDeleteError } = await supabase
+    .from("gtr_t_workorder_zip_screws")
+    .delete()
+    .eq("workorder_id", workorderId);
+  if (zipDeleteError) throw new Error("Error clearing work order zip screws: " + zipDeleteError.message);
+
+  if (zipRows.length > 0) {
+    const { error } = await supabase.from("gtr_t_workorder_zip_screws").insert(zipRows);
+    if (error) throw new Error("Error saving work order zip screws: " + error.message);
+  }
+
+  return { workorderId };
+}
+
+// ─── Purchase Order ──────────────────────────────────────────
+export async function savePurchaseOrder(projId, purchaseOrder) {
+  const id = toIntOrNull(projId);
+  if (id === null) throw new Error("projId is required");
   const po = purchaseOrder && typeof purchaseOrder === "object" ? purchaseOrder : {};
   const toInt = (v) => { const n = toIntOrNull(v); return n === null ? 0 : Math.max(0, n); };
   const toNum = (v) => { if (!hasValue(v)) return 0; const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0; };

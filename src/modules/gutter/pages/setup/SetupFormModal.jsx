@@ -20,15 +20,29 @@ export default function SetupFormModal({ show, mode, tableName, fields, draft, b
             <Form.Label className="setup-form-modal__label">
               {f.label}{f.required ? <span className="setup-form-modal__required">*</span> : ""}
             </Form.Label>
-            <Form.Control
-              type={f.type || "text"}
-              step={f.step || undefined}
-              size="sm"
-              value={draft[f.key] ?? ""}
-              onChange={(e) => onDraftChange(f.key, e.target.value)}
-              placeholder={f.label}
-              className="setup-form-modal__input"
-            />
+            {f.type === "select" ? (
+              <Form.Select
+                size="sm"
+                value={draft[f.key] ?? ""}
+                onChange={(e) => onDraftChange(f.key, e.target.value)}
+                className="setup-form-modal__input"
+              >
+                <option value="">— Select {f.label} —</option>
+                {(f.options || []).map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </Form.Select>
+            ) : (
+              <Form.Control
+                type={f.type || "text"}
+                step={f.step || undefined}
+                size="sm"
+                value={draft[f.key] ?? ""}
+                onChange={(e) => onDraftChange(f.key, e.target.value)}
+                placeholder={f.label}
+                className="setup-form-modal__input"
+              />
+            )}
           </Form.Group>
         ))}
         <div className="setup-form-modal__actions">

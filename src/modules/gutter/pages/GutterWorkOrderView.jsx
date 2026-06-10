@@ -4,10 +4,11 @@ import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { Container, Row, Col, Form } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowLeft, faPrint, faRulerCombined, faBoxOpen, faSignsPost } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faPrint, faCheck, faRulerCombined, faBoxOpen, faSignsPost } from "@fortawesome/free-solid-svg-icons";
 import { faBuilding, faPenToSquare, faIdBadge, faNoteSticky } from "@fortawesome/free-regular-svg-icons";
-import { Button } from "@/shared/components/ui";
+import { Button, toastSuccess, toastError } from "@/shared/components/ui";
 import { calculateMaterials, calculateQuote } from "../data/gutter.data";
+import { saveGutterWorkOrder } from "../data/gutter.actions";
 import styles from "./GutterWorkOrder.module.css";
 
 const MAX_SIZE_ROWS = 10;
@@ -30,21 +31,45 @@ const toDecimalDisplay = (value, digits = 2) => {
   return parsed.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: digits });
 };
 
-export default function GutterWorkOrderView({ projectId, projectData, manufacturerName }) {
+const buildInitialWorkOrder = (saved) => {
+  const assignments = Array.from({ length: MAX_DSP_ROWS }, (_, index) => {
+    if (saved?.downspoutAssignments && Array.isArray(saved.downspoutAssignments)) {
+      return String(saved.downspoutAssignments[index] ?? "");
+    }
+    return "";
+  });
+
+  const zipScrewsBags = Array.isArray(saved?.zipScrewsBags) && saved.zipScrewsBags.length > 0
+    ? saved.zipScrewsBags.map((row) => ({
+        qty: row?.qty !== undefined && row?.qty !== null ? String(row.qty) : "1",
+        color: row?.color !== undefined && row?.color !== null ? String(row.color) : "",
+      }))
+    : [{ qty: "1", color: "" }];
+
+  return {
+    workOrderNo: saved?.work_order_no ? String(saved.work_order_no) : "",
+    workOrderDate: saved?.work_order_date ? String(saved.work_order_date) : "",
+    installerName: saved?.installer_name ? String(saved.installer_name) : "",
+    installDate: saved?.installation_date ? String(saved.installation_date) : "",
+    notes: saved?.notes ? String(saved.notes) : "",
+    installerSignature: saved?.signature_name ? String(saved.signature_name) : "",
+    signatureDate: saved?.signature_date ? String(saved.signature_date) : "",
+    downspoutAssignments: assignments,
+    gutterSize: "6 inch K-Style",
+    zipScrewsBags,
+  };
+};
+
+export default function GutterWorkOrderView({ projectId, projectData, manufacturerName, workOrderData }) {
   const header = projectData?.projectHeader || null;
   const sides = projectData?.projectSides || [];
   const colors = projectData?.colors || [];
 
-  const [workOrder, setWorkOrder] = useState({
-    installerName: "",
-    installDate: "",
-    notes: "",
-    installerSignature: "",
-    signatureDate: "",
-    downspoutAssignments: Array.from({ length: MAX_DSP_ROWS }, () => ""),
-    gutterSize: "6 inch K-Style",
-    zipScrewsBags: [{ qty: "1", color: "" }],
-  });
+  const initialWorkOrder = buildInitialWorkOrder(workOrderData);
+  const [workOrder, setWorkOrder] = useState(initialWorkOrder);
+  const [baselineSnapshot, setBaselineSnapshot] = useState(() => workOrderData ? JSON.stringify(initialWorkOrder) : null);
+
+  const [saving, setSaving] = useState(false);
 
   const colorById = useMemo(() => {
     const map = {};
@@ -88,6 +113,23 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
   }, [sections]);
 
   const dspRows = useMemo(() => Array.from({ length: MAX_DSP_ROWS }, (_, i) => i + 1), []);
+
+  const currentSnapshot = useMemo(() => JSON.stringify(workOrder), [workOrder]);
+  const hasChanges = baselineSnapshot === null || currentSnapshot !== baselineSnapshot;
+  const canPrint = baselineSnapshot !== null && !hasChanges;
+
+  const saveWorkOrder = useCallback(async () => {
+    setSaving(true);
+    try {
+      await saveGutterWorkOrder({ projectId, workOrder });
+      setBaselineSnapshot(currentSnapshot);
+      toastSuccess("Work order saved.", "Work Order");
+    } catch (err) {
+      toastError(err?.message || "Error saving work order.", "Work Order");
+    } finally {
+      setSaving(false);
+    }
+  }, [currentSnapshot, projectId, workOrder]);
 
   const updateField = (field, value) => setWorkOrder((prev) => ({ ...prev, [field]: value }));
 
@@ -160,16 +202,12 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
           </Link>
           <div className={styles.woHeaderTitle}>
             <h1 className={styles.woTitle}>Work Order</h1>
-            <span className={styles.woSubtitle}>{header.project_name || `PO# ${header.proj_id}`}</span>
+            <span className={styles.woSubtitle}>{header.project_name || `Project #${header.proj_id}`}</span>
           </div>
           <div className={styles.woHeaderMeta}>
             <div className={styles.woMetaItem}>
-              <span className={styles.woMetaLabel}>PO#</span>
+              <span className={styles.woMetaLabel}>Project #</span>
               <span className={styles.woMetaValue}>{toDisplay(header.proj_id)}</span>
-            </div>
-            <div className={styles.woMetaItem}>
-              <span className={styles.woMetaLabel}>Date</span>
-              <span className={styles.woMetaValue}>{toDisplay(header.date)}</span>
             </div>
             <div className={styles.woMetaItem}>
               <span className={styles.woMetaLabel}>Address</span>
@@ -178,9 +216,19 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
           </div>
         </div>
         <div className={styles.woHeaderActions}>
-          <Button variant="secondary" onClick={handlePrintPdf}>
-            <FontAwesomeIcon icon={faPrint} className="me-1" /> Print / PDF
+          <Button variant="success" onClick={saveWorkOrder} disabled={saving || !hasChanges} loading={saving}>
+            <FontAwesomeIcon icon={faCheck} className="me-1" /> Save Work Order
           </Button>
+          {hasChanges && (
+            <span className="small text-danger fw-semibold align-self-center">
+              Unsaved changes: save to enable Print.
+            </span>
+          )}
+          {canPrint && (
+            <Button variant="secondary" onClick={handlePrintPdf}>
+              <FontAwesomeIcon icon={faPrint} className="me-1" /> Print / PDF
+            </Button>
+          )}
         </div>
       </div>
 
@@ -327,9 +375,17 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
           {/* Installer Info */}
           <div className={styles.woSection}>
             <div className={styles.woSectionHeader}>
-              <FontAwesomeIcon icon={faIdBadge} /> Installer
+              <FontAwesomeIcon icon={faIdBadge} /> Details
             </div>
             <div className={styles.woSectionBody}>
+              <Form.Group className="mb-2">
+                <Form.Label className={styles.woFormLabel}>PO#</Form.Label>
+                <Form.Control size="sm" value={workOrder.workOrderNo} onChange={(e) => updateField("workOrderNo", e.target.value)} placeholder="Enter purchase order number" />
+              </Form.Group>
+              <Form.Group className="mb-2">
+                <Form.Label className={styles.woFormLabel}>Date</Form.Label>
+                <Form.Control size="sm" type="date" value={workOrder.workOrderDate} onChange={(e) => updateField("workOrderDate", e.target.value)} />
+              </Form.Group>
               <Form.Group className="mb-2">
                 <Form.Label className={styles.woFormLabel}>Installer Name</Form.Label>
                 <Form.Control size="sm" value={workOrder.installerName} onChange={(e) => updateField("installerName", e.target.value)} />

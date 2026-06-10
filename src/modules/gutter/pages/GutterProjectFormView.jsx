@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Container, Row, Col, Form } from "react-bootstrap";
@@ -80,6 +80,14 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
   );
 
   const [saving, setSaving] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({ customer: false, projectName: false });
+
+  // Filter colors by selected manufacturer (dependent filtering)
+  const colorsByManufacturer = useMemo(() => {
+    const selectedMfrId = project?.manufacturerId;
+    if (!selectedMfrId) return colors;
+    return colors.filter((c) => String(c.manufacturer_id) === String(selectedMfrId));
+  }, [colors, project]);
 
   // ─── Print mode ────────────────────────────────────────
   useEffect(() => {
@@ -87,6 +95,25 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
     document.body.classList.add("gutter-quote-print-mode");
     return () => document.body.classList.remove("gutter-quote-print-mode");
   }, []);
+
+  // ─── Dependent filtering: reset colors when manufacturer changes ──────
+  const prevManufacturerRef = useRef(project?.manufacturerId);
+  useEffect(() => {
+    const prevMfrId = prevManufacturerRef.current;
+    const newMfrId = project?.manufacturerId;
+    if (prevMfrId !== newMfrId) {
+      prevManufacturerRef.current = newMfrId;
+      // Clear color selections when manufacturer changes
+      setProject((p) => ({
+        ...p,
+        sections: (p.sections || []).map((s) => ({
+          ...s,
+          colorId: "",
+          downspoutColorId: "",
+        })),
+      }));
+    }
+  }, [project?.manufacturerId]);
 
   // ─── Field helpers ─────────────────────────────────────
   const updateField = (field, value) => setProject((p) => ({ ...p, [field]: value }));
@@ -220,8 +247,16 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
     const toIntOrNull = (v) => { if (v === "" || v == null) return null; const n = Number(v); return Number.isFinite(n) ? Math.trunc(n) : null; };
     const toNumOrNull = (v) => { if (v === "" || v == null) return null; const n = Number(v); return Number.isFinite(n) ? n : null; };
 
+    const customerMissing = !project.customer?.trim();
+    const projectNameMissing = !project.projectName?.trim();
+    setValidationErrors({ customer: customerMissing, projectName: projectNameMissing });
+
     if (!project.statusId || !project.manufacturerId || !project.tripId) {
       toastError("Please select Status, Manufacturer, and Trip Rate.", "Validation");
+      return;
+    }
+    if (customerMissing || projectNameMissing) {
+      toastError("Customer and Project Name are required before saving.", "Validation");
       return;
     }
     if (project.leafGuardIncluded && !project.leafGuardId) {
@@ -391,15 +426,37 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
                   </Form.Group>
                 </Col>
                 <Col md={6}>
-                  <Form.Group>
-                    <Form.Label className={styles.gpFormLabel}>Customer</Form.Label>
-                    <Form.Control className="quote-field-control" value={project.customer || ""} onChange={(e) => updateField("customer", e.target.value)} />
+                  <Form.Group controlId="projectCustomer">
+                    <Form.Label className={styles.gpFormLabel}>Customer <span style={{ color: "#d63333" }}>*</span></Form.Label>
+                    <Form.Control
+                      className="quote-field-control"
+                      value={project.customer || ""}
+                      isInvalid={validationErrors.customer}
+                      onChange={(e) => {
+                        updateField("customer", e.target.value);
+                        if (validationErrors.customer && e.target.value.trim()) {
+                          setValidationErrors((prev) => ({ ...prev, customer: false }));
+                        }
+                      }}
+                    />
+                    <Form.Control.Feedback type="invalid">Customer is required.</Form.Control.Feedback>
                   </Form.Group>
                 </Col>
                 <Col md={6}>
-                  <Form.Group>
-                    <Form.Label className={styles.gpFormLabel}>Project Name</Form.Label>
-                    <Form.Control className="quote-field-control" value={project.projectName || ""} onChange={(e) => updateField("projectName", e.target.value)} />
+                  <Form.Group controlId="projectName">
+                    <Form.Label className={styles.gpFormLabel}>Project Name <span style={{ color: "#d63333" }}>*</span></Form.Label>
+                    <Form.Control
+                      className="quote-field-control"
+                      value={project.projectName || ""}
+                      isInvalid={validationErrors.projectName}
+                      onChange={(e) => {
+                        updateField("projectName", e.target.value);
+                        if (validationErrors.projectName && e.target.value.trim()) {
+                          setValidationErrors((prev) => ({ ...prev, projectName: false }));
+                        }
+                      }}
+                    />
+                    <Form.Control.Feedback type="invalid">Project Name is required.</Form.Control.Feedback>
                   </Form.Group>
                 </Col>
                 <Col md={12}>
@@ -497,7 +554,7 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
                           <Form.Label className={styles.gpFormLabel}>Color</Form.Label>
                           <Form.Select className="quote-field-control" value={section.colorId || ""} onChange={(e) => updateSection(i, "colorId", e.target.value)}>
                             <option value="">Select...</option>
-                            {colors.map((c) => <option key={c.color_id} value={String(c.color_id)}>{c.name}</option>)}
+                            {colorsByManufacturer.map((c) => <option key={c.color_id} value={String(c.color_id)}>{c.name}</option>)}
                           </Form.Select>
                         </Form.Group>
                       </Col>
@@ -529,7 +586,7 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
                           <Form.Label className={styles.gpFormLabel}>Color</Form.Label>
                           <Form.Select className="quote-field-control" value={section.downspoutColorId || ""} onChange={(e) => updateSection(i, "downspoutColorId", e.target.value)}>
                             <option value="">Select...</option>
-                            {colors.map((c) => <option key={c.color_id} value={String(c.color_id)}>{c.name}</option>)}
+                            {colorsByManufacturer.map((c) => <option key={c.color_id} value={String(c.color_id)}>{c.name}</option>)}
                           </Form.Select>
                         </Form.Group>
                       </Col>
@@ -767,13 +824,13 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
                     </div>
 
                     {hasBreakdownData && (
-                      <div className="quote-review-column quote-review-column-material" style={{ borderLeft: "1px solid #ccc", paddingLeft: "16px" }}>
+                      <div className="quote-review-column quote-review-column-material">
                         <div className="pt-3 quote-material-details" style={{ fontSize: "0.82rem" }}>
                           <div className="small text-uppercase text-muted fw-semibold mb-2">Material Details</div>
                           {sectionBreakdownRows.length > 0 && (
                             <>
                               <div className="fw-semibold mb-1" style={{ fontSize: "0.8rem" }}>Gutter k Style 6 Inch</div>
-                              <table style={{ width: "100%", fontSize: "0.75rem", borderCollapse: "collapse" }}>
+                              <table className="quote-material-table quote-material-table--gutter" style={{ width: "100%", fontSize: "0.75rem", borderCollapse: "collapse" }}>
                                 <thead>
                                   <tr style={{ borderBottom: "1px solid #ccc" }}>
                                     <th style={{ textAlign: "left", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Section</th>
@@ -789,7 +846,9 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
                                     <tr key={`gutter-${row.section}`} style={{ borderBottom: "1px solid #eee" }}>
                                       <td style={{ padding: "3px 6px", fontWeight: 600 }}>{row.section}</td>
                                       <td style={{ padding: "3px 6px", textAlign: "center" }}>{displayIntOrDash(row.sides)}</td>
-                                      <td style={{ padding: "3px 6px" }}>{displayOrDash(row.gutterColor)}</td>
+                                      <td style={{ padding: "3px 6px" }} data-tooltip={row.gutterColor || undefined}>
+                                        <span className="quote-material-cell">{displayOrDash(row.gutterColor)}</span>
+                                      </td>
                                       <td style={{ padding: "3px 6px", textAlign: "center" }}>{row.ft === null ? "—" : `${displayIntOrDash(row.ft)} FT`}</td>
                                       <td style={{ padding: "3px 6px", textAlign: "center" }}>{row.heightFt === null ? "—" : `${displayIntOrDash(row.heightFt)} FT`}</td>
                                       <td style={{ padding: "3px 6px", textAlign: "right" }}>{fmt(row.gutterFt)} FT</td>
@@ -799,7 +858,7 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
                               </table>
 
                               <div className="fw-semibold mb-1" style={{ fontSize: "0.8rem", marginTop: "10px" }}>3x4 Downspouts</div>
-                              <table style={{ width: "100%", fontSize: "0.75rem", borderCollapse: "collapse" }}>
+                              <table className="quote-material-table quote-material-table--downspout" style={{ width: "100%", fontSize: "0.75rem", borderCollapse: "collapse" }}>
                                 <thead>
                                   <tr style={{ borderBottom: "1px solid #ccc" }}>
                                     <th style={{ textAlign: "left", padding: "2px 6px", color: "#777", fontWeight: 600 }}>Section</th>
@@ -812,7 +871,9 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
                                   {sectionBreakdownRows.map((row) => (
                                     <tr key={`ds-${row.section}`} style={{ borderBottom: "1px solid #eee" }}>
                                       <td style={{ padding: "3px 6px", fontWeight: 600 }}>{row.section}</td>
-                                      <td style={{ padding: "3px 6px" }}>{displayOrDash(row.downspoutColor)}</td>
+                                      <td style={{ padding: "3px 6px" }} data-tooltip={row.downspoutColor || undefined}>
+                                        <span className="quote-material-cell">{displayOrDash(row.downspoutColor)}</span>
+                                      </td>
                                       <td style={{ padding: "3px 6px", textAlign: "center" }}>{displayIntOrDash(row.dsQty)}</td>
                                       <td style={{ padding: "3px 6px", textAlign: "right" }}>{fmt(row.downspoutFt)} FT</td>
                                     </tr>
