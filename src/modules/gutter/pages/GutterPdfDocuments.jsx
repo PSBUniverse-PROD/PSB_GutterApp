@@ -236,127 +236,144 @@ export function QuotePdf({ header, quoteResult, companyProfile, displayDate, sel
    ========================================================================== */
 export function WorkOrderPdf({ header, sides, materials, companyProfile, zipScrewsBags, workOrderData }) {
   const matW = ["45%", "20%", "35%"];
+  const measW = ["10%", "22%", "22%", "22%", "24%"];
   const wo = workOrderData || {};
+
+  const materialRows = [
+    ['Gutter Coil 15"', `${fmtNum(materials?.gutterCoil?.totalFt)} FT / ${fmtNum(materials?.gutterCoil?.totalLbs)} lbs`, materials?.gutterCoil?.color || "—"],
+    ['Right End Caps - 6" K-Style', fmtInt(materials?.endCaps?.right?.qty), materials?.endCaps?.right?.color || "—"],
+    ['Left End Caps - 6" K-Style', fmtInt(materials?.endCaps?.left?.qty), materials?.endCaps?.left?.color || "—"],
+    ['3" x 4" Downpipe 10\'ft', fmtInt(materials?.downpipe?.qty), materials?.downpipe?.color || "—"],
+    ['3" x 4" - 6" One Piece Offset', fmtInt(materials?.onePieceOffset?.qty), materials?.onePieceOffset?.color || "—"],
+    ['3" x 4" -(A) Elbow', fmtInt(materials?.elbow?.qty), materials?.elbow?.color || "—"],
+    ['6" Hidden Hangers', fmtInt(materials?.internal?.hiddenHangers), "Auto"],
+    ...(zipScrewsBags && zipScrewsBags.length > 0
+      ? zipScrewsBags.map((bag, i) => [`Zip Screws Bag ${i + 1}`, String(bag.qty || 0), bag.color || "—"])
+      : [['#8 x 1/2" Zip Screws', fmtInt(materials?.zipScrews?.qty), materials?.zipScrews?.color || "—"]]
+    ),
+  ];
 
   return (
     <Document>
       <Page size="LETTER" style={s.page}>
-        <DocHeader
-          leftTitle={companyProfile.name || "Company"}
-          leftSubtitle={companyProfile.email}
-          leftSub2={companyProfile.phone}
-          rightMeta={[
-            { label: "PO#", value: workOrderData?.work_order_no ? String(workOrderData.work_order_no) : "—" },
-            { label: "Date", value: toDisplay(workOrderData?.work_order_date) },
-          ]}
-        />
+        {/* Row 1: Header */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+          <View>
+            <Text style={s.companyName}>{companyProfile.name || "Company"}</Text>
+            <Text style={s.companyDetail}>{companyProfile.email}</Text>
+            <Text style={s.companyDetail}>{companyProfile.phone}</Text>
+          </View>
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={[s.detailItem, { marginBottom: 1 }]}>
+              <Text style={s.detailLabel}>PO# </Text>
+              <Text style={[s.detailValue, { fontFamily: "Helvetica-Bold" }]}>{workOrderData?.workOrderNo ? String(workOrderData.workOrderNo) : "—"}</Text>
+            </Text>
+            <Text style={s.detailItem}>
+              <Text style={s.detailLabel}>Date </Text>
+              <Text style={[s.detailValue, { fontFamily: "Helvetica-Bold" }]}>{toDisplay(workOrderData?.workOrderDate)}</Text>
+            </Text>
+          </View>
+        </View>
+        <View style={s.divider} />
 
-        {/* Work Order Info */}
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>Work Order</Text>
-          {[
-            ["Customer", toDisplay(header.customer)],
-            ["Project", toDisplay(header.project_name)],
-            ["Address", toDisplay(header.project_address)],
-            ["K-Style Color", materials?.colors?.kStyleGutterColor || "—"],
-            ["Downspout Color", materials?.colors?.downspoutColor || "—"],
-          ].map(([label, value]) => (
-            <View key={label} style={s.detailItem}>
-              <Text style={s.detailLabel}>{label}</Text>
-              <Text style={s.detailValue}>{value}</Text>
+        {/* Row 2: Work Order (left) + Installer (right) */}
+        <View style={{ flexDirection: "row", gap: 24, marginBottom: 6 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.sectionTitle, { marginBottom: 3, fontSize: 10 }]}>Work Order</Text>
+            <View style={s.detailItem}><Text style={s.detailLabel}>Customer</Text><Text style={s.detailValue}>{toDisplay(header.customer)}</Text></View>
+            <View style={s.detailItem}><Text style={s.detailLabel}>Project</Text><Text style={s.detailValue}>{toDisplay(header.project_name)}</Text></View>
+            <View style={s.detailItem}><Text style={s.detailLabel}>Address</Text><Text style={s.detailValue}>{toDisplay(header.project_address)}</Text></View>
+            <View style={s.detailItem}><Text style={s.detailLabel}>K-Style Color</Text><Text style={s.detailValue}>{materials?.colors?.kStyleGutterColor || "—"}</Text></View>
+            <View style={s.detailItem}><Text style={s.detailLabel}>Downspout Color</Text><Text style={s.detailValue}>{materials?.colors?.downspoutColor || "—"}</Text></View>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.sectionTitle, { marginBottom: 3, fontSize: 10 }]}>Installer</Text>
+            <View style={s.detailItem}>
+              <Text style={s.detailLabel}>Name</Text>
+              <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: "#999", height: 11 }} />
             </View>
-          ))}
-        </View>
-
-        {/* Measurements */}
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>Measurements</Text>
-          <TableRow header cells={["#", "Length (FT)", "Height (FT)", "Segments", "Downspouts"]} widths={["10%", "22%", "22%", "22%", "24%"]} />
-          {sides.map((side, i) => (
-            <TableRow key={i} cells={[
-              String(i + 1), toDisplay(side.length), toDisplay(side.height),
-              toDisplay(side.segments), toDisplay(side.downspout_qty),
-            ]} widths={["10%", "22%", "22%", "22%", "24%"]} />
-          ))}
-        </View>
-
-        {/* Material Summary */}
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>Material Summary</Text>
-          <TableRow header cells={["Item", "QTY", "Color"]} widths={matW} />
-          {[
-            ['Gutter Coil 15" (Ft / Lbs)', fmtNum(materials?.gutterCoil?.totalFt), `${fmtNum(materials?.gutterCoil?.totalLbs)} / ${materials?.gutterCoil?.color || "—"}`],
-            ['Right End Caps - 6" K-Style', fmtInt(materials?.endCaps?.right?.qty), materials?.endCaps?.right?.color || "—"],
-            ['Left End Caps - 6" K-Style', fmtInt(materials?.endCaps?.left?.qty), materials?.endCaps?.left?.color || "—"],
-            ['3" x 4" Downpipe 10\'ft', fmtInt(materials?.downpipe?.qty), materials?.downpipe?.color || "—"],
-            ['3" x 4" - 6" One Piece Offset', fmtInt(materials?.onePieceOffset?.qty), materials?.onePieceOffset?.color || "—"],
-            ['3" x 4" -(A) Elbow', fmtInt(materials?.elbow?.qty), materials?.elbow?.color || "—"],
-            ['6" Hidden Hangers', fmtInt(materials?.internal?.hiddenHangers), "Auto"],
-          ].map(([item, qty, color]) => (
-            <TableRow key={item} cells={[item, qty, color]} widths={matW} />
-          ))}
-
-        </View>
-
-        {/* Installer Info */}
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>Installer</Text>
-          {[
-            ["Name", wo.installerName || ""],
-            ["Install Date", wo.installDate || ""],
-            ["Signature", wo.installerSignature || ""],
-            ["Signature Date", wo.signatureDate || ""],
-          ].map(([label, value]) => (
-            <View key={label} style={s.detailItem}>
-              <Text style={s.detailLabel}>{label}</Text>
-              <Text style={s.detailValue}>{value || "_________________"}</Text>
+            <View style={s.detailItem}>
+              <Text style={s.detailLabel}>Install Date</Text>
+              <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: "#999", height: 11 }} />
             </View>
-          ))}
+            <View style={s.detailItem}>
+              <Text style={s.detailLabel}>Signature</Text>
+              <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: "#999", height: 11 }} />
+            </View>
+            <View style={s.detailItem}>
+              <Text style={s.detailLabel}>Signature Date</Text>
+              <View style={{ flex: 1, borderBottomWidth: 1, borderBottomColor: "#999", height: 11 }} />
+            </View>
+          </View>
         </View>
+        <View style={s.divider} />
 
-        {/* DSP Assignments */}
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>DSP Assignments</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
-            {(wo.downspoutAssignments || []).map((val, i) => (
-              val ? (
-                <View key={i} style={{ flexDirection: "row", width: "48%", marginBottom: 3 }}>
-                  <Text style={[s.detailLabel, { width: 50 }]}>DSP#{i + 1}</Text>
-                  <Text style={s.detailValue}>{val}</Text>
-                </View>
-              ) : null
+        {/* Row 3: Measurements (left) + Material Summary (right) */}
+        <View style={{ flexDirection: "row", gap: 16, marginBottom: 6 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.sectionTitle, { marginBottom: 3, fontSize: 10 }]}>Measurements</Text>
+            <TableRow header cells={["#", "Length (FT)", "Height (FT)", "Segments", "Downspouts"]} widths={measW} />
+            {sides.map((side, i) => (
+              <TableRow key={i} cells={[
+                String(i + 1), toDisplay(side.length), toDisplay(side.height),
+                toDisplay(side.segments), toDisplay(side.downspout_qty),
+              ]} widths={measW} />
+            ))}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.sectionTitle, { marginBottom: 3, fontSize: 10 }]}>Material Summary</Text>
+            <TableRow header cells={["Item", "QTY", "Color"]} widths={matW} />
+            {materialRows.map(([item, qty, color]) => (
+              <TableRow key={item} cells={[item, qty, color]} widths={matW} />
             ))}
           </View>
         </View>
+        <View style={s.divider} />
 
-        {/* Zip Screws */}
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>#8 x 1/2&quot; Zip Screws (100/bag)</Text>
-          <TableRow header cells={["Item", "QTY", "Color"]} widths={matW} />
-          {(zipScrewsBags && zipScrewsBags.length > 0 ? zipScrewsBags : [{ qty: materials?.zipScrews?.qty || 0, color: materials?.zipScrews?.color || "—" }]).map((bag, i) => (
-            <TableRow key={`zip-${i}`} cells={[`Bag ${i + 1}`, String(bag.qty || 0), bag.color || "—"]} widths={matW} />
-          ))}
-        </View>
-
-        {/* Sketch area */}
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>Sketch / Diagram</Text>
-          <View style={s.sketchBox}>
-            <Text style={[s.sketchLabel, { top: 4, left: "45%" }]}>Front</Text>
-            <Text style={[s.sketchLabel, { bottom: 4, left: "45%" }]}>Back</Text>
-            <Text style={[s.sketchLabel, { top: "45%", left: 4 }]}>Left</Text>
-            <Text style={[s.sketchLabel, { top: "45%", right: 4 }]}>Right</Text>
+        {/* Row 4: Details Section — Sketch (70%) + DSP + Notes (30%) */}
+        <View style={{ flex: 1, flexDirection: "row", gap: 16 }}>
+          {/* Left: Sketch / Diagram (70%) */}
+          <View style={{ flex: 7 }}>
+            <Text style={[s.sectionTitle, { marginBottom: 3, fontSize: 10 }]}>Sketch / Diagram</Text>
+            <View style={{ width: "100%", height: "100%", position: "relative" }}>
+              <View style={{ position: "absolute", left: "8%", top: "8%", width: "75%", height: "82%", borderWidth: 1.5, borderColor: "#333" }}>
+                <View style={{ position: "absolute", left: "33%", top: -11, width: "34%", height: 11, borderWidth: 1, borderColor: "#333", backgroundColor: "#fff" }}>
+                  <Text style={{ fontSize: 6, textAlign: "center" }}>Front</Text>
+                </View>
+                <View style={{ position: "absolute", left: "33%", bottom: -11, width: "34%", height: 11, borderWidth: 1, borderColor: "#333", backgroundColor: "#fff" }}>
+                  <Text style={{ fontSize: 6, textAlign: "center" }}>Back</Text>
+                </View>
+                <View style={{ position: "absolute", left: -1, top: "33%", width: "38%", height: "34%", borderWidth: 1, borderColor: "#333", backgroundColor: "#f5f5f5", justifyContent: "center", alignItems: "center" }}>
+                  <Text style={{ fontSize: 7 }}>Left</Text>
+                </View>
+                <View style={{ position: "absolute", right: -1, top: "33%", width: "38%", height: "34%", borderWidth: 1, borderColor: "#333", backgroundColor: "#f5f5f5", justifyContent: "center", alignItems: "center" }}>
+                  <Text style={{ fontSize: 7 }}>Right</Text>
+                </View>
+              </View>
+            </View>
           </View>
-        </View>
 
-        {/* Notes */}
-        <View style={s.section}>
-          <Text style={s.sectionTitle}>Installer Notes</Text>
-          {wo.notes ? (
-            <Text style={s.note}>{wo.notes}</Text>
-          ) : (
-            <View style={s.notesBox} />
-          )}
+          {/* Right: DSP Assignments + Extra Notes (30%) */}
+          <View style={{ flex: 3, flexDirection: "column" }}>
+            <Text style={[s.sectionTitle, { marginBottom: 3, fontSize: 10 }]}>DSP Assignments</Text>
+            <View style={{ borderWidth: 1, borderColor: "#999", marginBottom: 6 }}>
+              <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#999", backgroundColor: "#f0f0f0", paddingVertical: 2 }}>
+                <Text style={[s.thText, { width: "30%", paddingLeft: 4 }]}>DSP #</Text>
+                <Text style={[s.thText, { width: "70%", paddingLeft: 4 }]}>Assigned Value</Text>
+              </View>
+              {(wo.downspoutAssignments || Array.from({ length: 8 }, () => "")).map((val, i) => (
+                <View key={i} style={{ flexDirection: "row", borderBottomWidth: i < 7 ? 0.5 : 0, borderBottomColor: "#ddd", paddingVertical: 2 }}>
+                  <Text style={[s.tdText, { width: "30%", paddingLeft: 4 }]}>DSP#{i + 1}</Text>
+                  <Text style={[s.tdText, { width: "70%", paddingLeft: 4 }]}>{val || "—"}</Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={[s.sectionTitle, { marginBottom: 3, fontSize: 10 }]}>Extra Notes</Text>
+            <View style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", minHeight: 50, padding: 4 }}>
+              {wo.notes ? <Text style={s.note}>{wo.notes}</Text> : null}
+            </View>
+          </View>
         </View>
       </Page>
     </Document>

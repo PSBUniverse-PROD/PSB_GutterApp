@@ -410,6 +410,9 @@ export async function saveGutterWorkOrder({ projectId, workOrder }) {
   };
 
   const normalized = {
+    work_order_no: normalize(workOrder.workOrderNo),
+    po_number: normalize(workOrder.poNumber),
+    work_order_date: normalize(workOrder.workOrderDate),
     installer_name: normalize(workOrder.installerName),
     installation_date: normalize(workOrder.installDate),
     signature_name: normalize(workOrder.installerSignature),
