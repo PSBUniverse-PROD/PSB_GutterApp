@@ -510,6 +510,7 @@ const INTERNAL_SCREWS_PER_ELBOW = 6;
 function toNonNeg(v) { const n = asNumber(v); return n > 0 ? n : 0; }
 function pickFirstText(...vals) { for (const v of vals) { const t = String(v ?? "").trim(); if (t) return t; } return ""; }
 function ceilNonNeg(v) { return Math.ceil(toNonNeg(v)); }
+function truncNonNeg(v) { return Math.trunc(toNonNeg(v)); }
 
 function normalizeSection(s) {
   const src = s && typeof s === "object" ? s : {};
@@ -560,7 +561,7 @@ export function calculateMaterials(projectData = {}) {
 
   const gutterCoilTotalFt = totalGutterFt + GUTTER_COIL_EXTRA_FT;
   const gutterCoilTotalLbs = gutterCoilTotalFt * GUTTER_COIL_LBS_PER_FT;
-  const hiddenHangersQty = ceilNonNeg(gutterCoilTotalFt / HIDDEN_HANGERS_DIVISOR + HIDDEN_HANGERS_BASE);
+  const hiddenHangersQty = truncNonNeg(gutterCoilTotalFt / HIDDEN_HANGERS_DIVISOR + HIDDEN_HANGERS_BASE);
   const downpipeQty = ceilNonNeg(totalDownspoutFt / DOWNPIPE_LENGTH_FT);
   const onePieceOffsetQty = ceilNonNeg(totalDownspoutQty);
   const elbowQty = onePieceOffsetQty;

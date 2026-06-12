@@ -240,7 +240,7 @@ export function WorkOrderPdf({ header, sides, materials, companyProfile, zipScre
   const wo = workOrderData || {};
 
   const materialRows = [
-    ['Gutter Coil 15"', `${fmtNum(materials?.gutterCoil?.totalFt)} FT / ${fmtNum(materials?.gutterCoil?.totalLbs)} lbs`, materials?.gutterCoil?.color || "—"],
+    ['Gutter Coil 15"', `${fmtInt(materials?.gutterCoil?.totalFt)} FT / ${fmtInt(Math.trunc(materials?.gutterCoil?.totalLbs || 0))} lbs`, materials?.gutterCoil?.color || "—"],
     ['Right End Caps - 6" K-Style', fmtInt(materials?.endCaps?.right?.qty), materials?.endCaps?.right?.color || "—"],
     ['Left End Caps - 6" K-Style', fmtInt(materials?.endCaps?.left?.qty), materials?.endCaps?.left?.color || "—"],
     ['3" x 4" Downpipe 10\'ft', fmtInt(materials?.downpipe?.qty), materials?.downpipe?.color || "—"],

@@ -328,7 +328,7 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
                   <tr>
                     <td>Gutter Coil 15&quot;</td>
                     <td>{toDecimalDisplay(materials?.gutterCoil?.totalFt)}</td>
-                    <td>{toDecimalDisplay(materials?.gutterCoil?.totalLbs)}</td>
+                    <td>{Math.trunc(materials?.gutterCoil?.totalLbs || 0)}</td>
                     <td>{materials?.gutterCoil?.color || "--"}</td>
                   </tr>
                 </tbody>
