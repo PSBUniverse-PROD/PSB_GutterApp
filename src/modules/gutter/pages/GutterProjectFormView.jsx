@@ -80,6 +80,8 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
   );
 
   const [saving, setSaving] = useState(false);
+  const [navigatingWorkOrder, setNavigatingWorkOrder] = useState(false);
+  const [navigatingPurchaseOrder, setNavigatingPurchaseOrder] = useState(false);
   const [validationErrors, setValidationErrors] = useState({ customer: false, projectName: false });
 
   // Filter colors by selected manufacturer (dependent filtering)
@@ -385,10 +387,10 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
             </span>
           )}
           {!hasChanges && isEdit && (
-            <Button variant="outline-primary" onClick={() => router.push(`/gutter/${projectId}/work-order`)}>Work Order</Button>
+            <Button variant="outline-primary" onClick={() => { setNavigatingWorkOrder(true); router.push(`/gutter/${projectId}/work-order`); }} disabled={navigatingWorkOrder} loading={navigatingWorkOrder}>Work Order</Button>
           )}
           {!hasChanges && isEdit && (
-            <Button variant="outline-primary" onClick={() => router.push(`/gutter/${projectId}/purchase-order`)}>Purchase Order</Button>
+            <Button variant="outline-primary" onClick={() => { setNavigatingPurchaseOrder(true); router.push(`/gutter/${projectId}/purchase-order`); }} disabled={navigatingPurchaseOrder} loading={navigatingPurchaseOrder}>Purchase Order</Button>
           )}
           {!hasChanges && (
             <Button variant="secondary" onClick={() => router.push(`/gutter/${projectId}/print`)}>
