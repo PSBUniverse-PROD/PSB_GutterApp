@@ -2,19 +2,25 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { Button, Form } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import psbLogo from "@/styles/psb_logo.png";
 import { getSupabase } from "@/core/supabase/client";
 import { toastError, toastSuccess } from "@/shared/utils/toast";
+import { validateRedirectUrl } from "@/core/auth/redirect-validator";
 import {
   setAccessTokenCookie, waitForServerSession, validateFields, mapLoginError,
 } from "../data/login.data";
 
+const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://psbuniverse.com";
+const DEFAULT_REDIRECT = `${CORE_PORTAL_URL}/dashboard`;
+
 // ── hook ───────────────────────────────────────────────────
-function useLogin() {
+function useLogin(redirectParam) {
   const [email, setEmail] = useState("");
+  const redirectTo = validateRedirectUrl(redirectParam, DEFAULT_REDIRECT);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -62,7 +68,7 @@ function useLogin() {
 
       await waitForServerSession();
       toastSuccess("Welcome to PSBUniverse. You have signed in successfully.", "Sign In Success");
-      window.location.assign("/dashboard");
+      window.location.assign(redirectTo);
     } catch (error) {
       const message = mapLoginError(error?.message);
       setInlineError(message);
@@ -112,7 +118,9 @@ function useLogin() {
 
 // ── view ───────────────────────────────────────────────────
 export default function LoginView() {
-  const h = useLogin();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams?.get("redirect") || "";
+  const h = useLogin(redirectParam);
 
   return (
     <div className="portal-login-shell">

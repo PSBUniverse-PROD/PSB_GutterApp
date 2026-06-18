@@ -244,16 +244,54 @@ export async function isSessionInvalidated(token) {
 async function storeSessionRecord(authUserId, userId, token) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
+    const now = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    // Create session records table if not exists (migration should handle this)
-    await supabaseAdmin.from('psb_sessions').insert({
-      auth_user_id: authUserId,
-      user_id: userId,
-      token_hash: hashToken(token),
-      created_at: new Date().toISOString(),
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      is_active: true,
-    });
+    // Check for an existing active session for this user
+    const { data: existingSession, error: lookupError } = await supabaseAdmin
+      .from('psb_sessions')
+      .select('id')
+      .eq('auth_user_id', authUserId)
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (lookupError) {
+      console.warn('Session lookup warning:', lookupError.message);
+      // Fall back to insert if lookup fails
+      await supabaseAdmin.from('psb_sessions').insert({
+        auth_user_id: authUserId,
+        user_id: userId,
+        token_hash: hashToken(token),
+        created_at: now,
+        expires_at,
+        is_active: true,
+      });
+      return;
+    }
+
+    if (existingSession?.id) {
+      // Update the existing active session — prevents duplicate rows
+      await supabaseAdmin
+        .from('psb_sessions')
+        .update({
+          token_hash: hashToken(token),
+          expires_at,
+          last_activity_at: now,
+          updated_at: now,
+        })
+        .eq('id', existingSession.id);
+    } else {
+      // No active session found — create a new one
+      await supabaseAdmin.from('psb_sessions').insert({
+        auth_user_id: authUserId,
+        user_id: userId,
+        token_hash: hashToken(token),
+        created_at: now,
+        expires_at,
+        is_active: true,
+      });
+    }
   } catch (error) {
     // Table might not exist yet, log and continue
     console.warn('Session record storage warning:', error.message);

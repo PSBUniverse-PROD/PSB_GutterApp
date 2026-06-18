@@ -135,15 +135,21 @@ export async function logout() {
 
 /**
  * Redirect user to the Core Portal login page.
+ * Uses the redirect validator to prevent open redirect vulnerabilities.
  * Optionally includes a redirect parameter to return after login.
  *
  * @param {string} [returnPath] - Path to return to after login (e.g., "/gutter/dashboard")
  */
 export function redirectToLogin(returnPath) {
   const loginUrl = new URL("/login", CORE_PORTAL_URL);
+
   if (returnPath) {
-    loginUrl.searchParams.set("redirect", returnPath);
+    const trimmed = String(returnPath || "").trim();
+    if (trimmed) {
+      loginUrl.searchParams.set("redirect", trimmed);
+    }
   }
+
   window.location.href = loginUrl.toString();
 }
 

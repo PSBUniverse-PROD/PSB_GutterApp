@@ -10,6 +10,9 @@ import {
   NAVBAR_LOADER_FINISH_EVENT,
   NAVBAR_LOADER_START_EVENT,
 } from "@/shared/utils/navbar-loader";
+import { logout as ssoLogout } from "@/core/sso-client";
+
+const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://psbuniverse.com";
 
 const SHOW_DELAY_MS = 140;
 const PROGRESS_TICK_MS = 200;
@@ -231,7 +234,7 @@ export default function AppLayout({ children }) {
   useEffect(() => {
     if (!loading && isAuthenticated && isLoginPage) {
       startLoader();
-      router.replace("/dashboard");
+      window.location.href = `${CORE_PORTAL_URL}/dashboard`;
     }
   }, [isAuthenticated, isLoginPage, loading, router, startLoader]);
 
@@ -313,15 +316,23 @@ export default function AppLayout({ children }) {
   async function handleLogout() {
     setLogoutBusy(true);
     try {
+      // Attempt universal SSO logout first
+      await ssoLogout();
+    } catch {
+      // Ignore SSO logout failure
+    }
+
+    try {
       const supabase = getSupabase();
       await supabase.auth.signOut();
-    } finally {
-      clearAccessTokenCookie();
-      setLogoutBusy(false);
-      startLoader();
-      router.replace("/login");
-      router.refresh();
+    } catch {
+      // Ignore Supabase sign-out failure
     }
+
+    clearAccessTokenCookie();
+    setLogoutBusy(false);
+    startLoader();
+    window.location.href = `${CORE_PORTAL_URL}/login`;
   }
 
   if (loading && !isLoginPage) {
