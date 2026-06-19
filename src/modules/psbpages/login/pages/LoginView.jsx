@@ -14,7 +14,7 @@ import {
   setAccessTokenCookie, waitForServerSession, validateFields, mapLoginError,
 } from "../data/login.data";
 
-const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://psbuniverse.com";
+const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://www.psbuniverse.com";
 const DEFAULT_REDIRECT = `${CORE_PORTAL_URL}/dashboard`;
 
 // ── hook ───────────────────────────────────────────────────

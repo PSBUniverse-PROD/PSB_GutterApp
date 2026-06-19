@@ -12,7 +12,7 @@ import {
 } from "@/shared/utils/navbar-loader";
 import { logout as ssoLogout } from "@/core/sso-client";
 
-const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://psbuniverse.com";
+const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://www.psbuniverse.com";
 
 const SHOW_DELAY_MS = 140;
 const PROGRESS_TICK_MS = 200;

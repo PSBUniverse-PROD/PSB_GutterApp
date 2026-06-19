@@ -7,7 +7,7 @@
  * SSO across all psbuniverse.com subdomains.
  */
 
-const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://psbuniverse.com";
+const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://www.psbuniverse.com";
 const MODULE_ID = process.env.NEXT_PUBLIC_MODULE_ID;
 
 // Normalize core portal URL to avoid redirect issues (strip trailing slash, ensure protocol)

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "react-bootstrap";
 import Form from "react-bootstrap/Form";
 
-const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://psbuniverse.com";
+const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://www.psbuniverse.com";
 const DALLAS_TIME_ZONE = "America/Chicago";
 
 function getDallasHour() {
