@@ -7,7 +7,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/core/supabase/admin';
 import { createUserSession } from '@/core/auth/session.service';
-import { getPSBSessionCookieHeader } from '@/core/auth/cookies.utils';
+import { getPSBSessionCookieHeader, getPSBUserPayloadCookieHeader } from '@/core/auth/cookies.utils';
 import { getCORSHeaders } from '@/core/auth/cors.utils';
 
 export async function POST(request) {
