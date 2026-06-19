@@ -14,7 +14,7 @@ const CONFIG = {
     },
   },
   prod: {
-    baseUrl: "https://psbuniverse.com",
+    baseUrl: "https://www.psbuniverse.com",
     modules: {
       gutter: "https://gutter.psbuniverse.com",
     },

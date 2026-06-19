@@ -39,6 +39,8 @@ export async function POST(request) {
     // Resolve database user
     let dbUser = null;
     let roles = [];
+    let moduleIds = [];
+    let roleIds = [];
 
     try {
       // Try by auth_user_id first
@@ -80,6 +82,8 @@ export async function POST(request) {
           .eq('is_active', true);
 
         roles = userRoles || [];
+        moduleIds = [...new Set(roles.map((r) => r.app_id).filter(Boolean))];
+        roleIds = [...new Set(roles.map((r) => r.role_id).filter(Boolean))];
       }
     } catch (error) {
       console.error('Database lookup error:', error);
@@ -111,8 +115,17 @@ export async function POST(request) {
       { status: 200, headers: corsHeaders }
     );
 
-    // Set secure session cookie
+    // Set secure session cookie (HttpOnly — not readable by JS, used for API auth)
     response.headers.set('Set-Cookie', getPSBSessionCookieHeader(session.token));
+
+    // Set shared payload cookie (readable by JS on all subdomains — enables local JWT validation)
+    response.headers.set('Set-Cookie', getPSBUserPayloadCookieHeader({
+      userId: dbUser.user_id,
+      email: authUser.email,
+      fullName: `${dbUser.first_name || ''} ${dbUser.last_name || ''}`.trim(),
+      modules: moduleIds,
+      roles: roleIds,
+    }));
 
     return response;
   } catch (error) {

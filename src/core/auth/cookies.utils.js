@@ -185,6 +185,61 @@ export function getClearPSBSessionCookieHeader() {
   return cookieStr;
 }
 
+// ── Shared Payload Cookie (for local JWT validation) ────────────────────────
+const USER_PAYLOAD_COOKIE_NAME = 'psb_user_payload';
+const USER_PAYLOAD_COOKIE_MAX_AGE = 24 * 60 * 60; // 24 hours
+
+/**
+ * Build a Set-Cookie header for the user payload cookie.
+ * This cookie is NOT HttpOnly so client-side JS can read it for local JWT validation.
+ * @param {Object} payload - User payload { userId, email, fullName, modules, roles }
+ * @returns {string} Set-Cookie header value
+ */
+export function getPSBUserPayloadCookieHeader(payload = {}) {
+  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64');
+  const domain = COOKIE_DOMAIN;
+
+  let cookieStr = `${USER_PAYLOAD_COOKIE_NAME}=${encoded}`;
+  cookieStr += `; Path=${COOKIE_PATH}`;
+  cookieStr += `; Max-Age=${USER_PAYLOAD_COOKIE_MAX_AGE}`;
+  cookieStr += `; SameSite=${COOKIE_SAMESITE}`;
+
+  if (domain) {
+    cookieStr += `; Domain=${domain}`;
+  }
+
+  if (COOKIE_SECURE) {
+    cookieStr += '; Secure';
+  }
+
+  // NOT HttpOnly — client-side JS must be able to read this
+  return cookieStr;
+}
+
+/**
+ * Get Set-Cookie header for clearing the user payload cookie
+ * @returns {string} Set-Cookie header value for clearing
+ */
+export function getClearPSBUserPayloadCookieHeader() {
+  const domain = COOKIE_DOMAIN;
+
+  let cookieStr = `${USER_PAYLOAD_COOKIE_NAME}=`;
+  cookieStr += `; Path=${COOKIE_PATH}`;
+  cookieStr += `; Max-Age=0`;
+  cookieStr += `; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  cookieStr += `; SameSite=${COOKIE_SAMESITE}`;
+
+  if (domain) {
+    cookieStr += `; Domain=${domain}`;
+  }
+
+  if (COOKIE_SECURE) {
+    cookieStr += '; Secure';
+  }
+
+  return cookieStr;
+}
+
 // ── Cookie Constants Export ────────────────────────────────────────────────
 export const COOKIE_CONSTANTS = {
   NAME: COOKIE_NAME,
@@ -193,4 +248,5 @@ export const COOKIE_CONSTANTS = {
   SECURE: COOKIE_SECURE,
   SAMESITE: COOKIE_SAMESITE,
   MAX_AGE: COOKIE_MAX_AGE,
+  USER_PAYLOAD_NAME: USER_PAYLOAD_COOKIE_NAME,
 };

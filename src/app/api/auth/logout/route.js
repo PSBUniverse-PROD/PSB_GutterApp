@@ -6,7 +6,7 @@
 
 import { NextResponse } from 'next/server';
 import { invalidateSession } from '@/core/auth/session.service';
-import { getClearPSBSessionCookieHeader, getPSBSessionCookieFromRequest } from '@/core/auth/cookies.utils';
+import { getClearPSBSessionCookieHeader, getClearPSBUserPayloadCookieHeader, getPSBSessionCookieFromRequest } from '@/core/auth/cookies.utils';
 import { getCORSHeaders } from '@/core/auth/cors.utils';
 
 export async function POST(request) {
@@ -29,6 +29,9 @@ export async function POST(request) {
     // Clear session cookie
     response.headers.set('Set-Cookie', getClearPSBSessionCookieHeader());
 
+    // Clear shared payload cookie
+    response.headers.set('Set-Cookie', getClearPSBUserPayloadCookieHeader());
+
     return response;
   } catch (error) {
     console.error('Logout endpoint error:', error);
@@ -40,6 +43,9 @@ export async function POST(request) {
     );
 
     response.headers.set('Set-Cookie', getClearPSBSessionCookieHeader());
+
+    // Clear shared payload cookie
+    response.headers.set('Set-Cookie', getClearPSBUserPayloadCookieHeader());
 
     return response;
   }

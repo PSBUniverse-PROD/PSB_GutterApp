@@ -13,7 +13,7 @@ const MODULE_ID = process.env.NEXT_PUBLIC_MODULE_ID;
 // Normalize core portal URL to avoid redirect issues (strip trailing slash, ensure protocol)
 function normalizeBaseUrl(url) {
   const trimmed = String(url || "").trim().replace(/\/$/, "");
-  if (!trimmed) return "https://psbuniverse.com";
+  if (!trimmed) return "https://www.psbuniverse.com";
   if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
     return `https://${trimmed}`;
   }
@@ -30,6 +30,21 @@ const NORMALIZED_CORE_PORTAL_URL = normalizeBaseUrl(CORE_PORTAL_URL);
  * @returns {Promise<Object|null>} Session payload { userId, email, fullName, modules, roles } or null
  */
 export async function validateSessionToken() {
+  // ── Primary: Local validation via psb_user_payload cookie ────────────────
+  // This cookie is set by Core Portal on login, scoped to .psbuniverse.com,
+  // and contains base64-encoded user data. Reading it locally means:
+  //   • No cross-origin API call
+  //   • No CORS headers needed
+  //   • No dependency on Core Portal being reachable
+  //   • ~0ms latency vs ~100-300ms for a round-trip
+  const localPayload = getPSBUserPayloadFromCookie();
+  if (localPayload) {
+    return localPayload;
+  }
+
+  // ── Fallback: Remote validation via Core Portal API ──────────────────────
+  // Used when the payload cookie is missing (e.g., first visit after login
+  // before the cookie is set, or cookie was cleared).
   try {
     const response = await fetch(`${NORMALIZED_CORE_PORTAL_URL}/api/auth/validate-token`, {
       method: "GET",
@@ -166,6 +181,67 @@ export async function logout() {
   } catch (error) {
     console.error("SSO logout error:", error);
   }
+}
+
+// ── Local Cookie Helpers ────────────────────────────────────────────────────
+
+const USER_PAYLOAD_COOKIE_NAME = 'psb_user_payload';
+
+/**
+ * Read and parse the psb_user_payload cookie set by Core Portal.
+ * This cookie is scoped to .psbuniverse.com and contains base64-encoded
+ * user data, enabling local JWT validation without cross-origin API calls.
+ *
+ * @returns {Object|null} Session payload { userId, email, fullName, modules, roles } or null
+ */
+export function getPSBUserPayloadFromCookie() {
+  if (typeof document === 'undefined') {
+    return null; // Server-side — use getSessionFromRequest() instead
+  }
+
+  try {
+    const match = document.cookie.match(new RegExp(`(^|;\\s*)${USER_PAYLOAD_COOKIE_NAME}=([^;]*)`));
+    if (!match) {
+      return null;
+    }
+
+    const decoded = Buffer.from(match[2], 'base64').toString('utf-8');
+    const payload = JSON.parse(decoded);
+
+    // Basic sanity check
+    if (!payload || typeof payload !== 'object' || !payload.userId) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Clear the local user payload cookie (client-side).
+ * Called on logout.
+ */
+export function clearPSBUserPayloadCookie() {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  // Must match the domain used when setting the cookie
+  const domain = process.env.NEXT_PUBLIC_COOKIE_DOMAIN || '.psbuniverse.com';
+
+  let cookieStr = `${USER_PAYLOAD_COOKIE_NAME}=`;
+  cookieStr += `; Path=/`;
+  cookieStr += `; Max-Age=0`;
+  cookieStr += `; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  cookieStr += `; SameSite=Lax`;
+
+  if (domain) {
+    cookieStr += `; Domain=${domain}`;
+  }
+
+  document.cookie = cookieStr;
 }
 
 /**
