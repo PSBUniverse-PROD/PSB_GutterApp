@@ -3,6 +3,8 @@ import GutterPurchaseOrderPage from "@/modules/gutter/pages/GutterPurchaseOrderP
 
 export const dynamic = "force-dynamic";
 
+export const routeMeta = {"auth":true,"path":"/gutter/[id]/purchase-order"};
+
 export default function Page(props) {
   return <GutterPurchaseOrderPage {...props} />;
 }
