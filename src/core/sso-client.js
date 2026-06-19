@@ -205,7 +205,25 @@ export function getPSBUserPayloadFromCookie() {
       return null;
     }
 
-    const decoded = Buffer.from(match[2], 'base64').toString('utf-8');
+    // Browser-native base64 decode (Buffer is Node.js-only)
+    // Handles URI-encoded cookie values and missing base64 padding
+    let cookieValue = match[2];
+    try {
+      cookieValue = decodeURIComponent(cookieValue);
+    } catch {
+      // Not URI-encoded, use raw value
+    }
+
+    // Add padding if browser stripped it
+    const padded = cookieValue + '='.repeat((4 - cookieValue.length % 4) % 4);
+
+    // Decode base64 → UTF-8 using TextDecoder (handles all Unicode correctly)
+    const binaryString = atob(padded);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const decoded = new TextDecoder('utf-8').decode(bytes);
     const payload = JSON.parse(decoded);
 
     // Basic sanity check
