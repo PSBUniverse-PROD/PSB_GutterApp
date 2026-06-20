@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Container, Form } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -54,6 +54,8 @@ export default function GutterPurchaseOrderView({ projectId, projectData, stored
     };
   });
   const [saving, setSaving] = useState(false);
+  const [baselineSnapshot, setBaselineSnapshot] = useState(() => storedPurchaseOrder ? JSON.stringify(storedPurchaseOrder) : null);
+  const initialStoredRef = useRef(storedPurchaseOrder);
 
   const colorById = useMemo(() => {
     const map = {};
@@ -90,6 +92,10 @@ export default function GutterPurchaseOrderView({ projectId, projectData, stored
     setManualInputs((prev) => ({ ...prev, [field]: value }));
   };
 
+  const currentSnapshot = useMemo(() => JSON.stringify(manualInputs), [manualInputs]);
+  const hasChanges = baselineSnapshot === null || currentSnapshot !== baselineSnapshot;
+  const canPrint = baselineSnapshot !== null && !hasChanges;
+
   const handleSave = useCallback(async () => {
     if (!projectId || !materials) return;
     setSaving(true);
@@ -114,13 +120,14 @@ export default function GutterPurchaseOrderView({ projectId, projectData, stored
         hidden_hangers_qty: materials.internal.hiddenHangers,
         box_screws_qty: materials.internal.boxScrews,
       });
+      setBaselineSnapshot(currentSnapshot);
       toastSuccess("Purchase order saved.", "Purchase Order");
     } catch (err) {
       toastError(err?.message || "Unable to save purchase order.", "Purchase Order");
     } finally {
       setSaving(false);
     }
-  }, [projectId, materials]);
+  }, [projectId, materials, currentSnapshot]);
 
   if (!header || !materials) return <Container className="py-4">Project not found.</Container>;
 
@@ -157,12 +164,19 @@ export default function GutterPurchaseOrderView({ projectId, projectData, stored
               <FontAwesomeIcon icon={faUpRightFromSquare} className="me-1" /> Source Sheet
             </Button>
           )}
-          <Button variant="secondary" onClick={() => window.open(`/gutter/${projectId}/print`, "_blank")}>
-            <FontAwesomeIcon icon={faPrint} className="me-1" /> Print
+          <Button variant="success" onClick={handleSave} disabled={saving || !hasChanges} loading={saving}>
+            <FontAwesomeIcon icon={faCheck} className="me-1" /> Save Purchase Order
           </Button>
-          <Button variant="success" onClick={handleSave} disabled={saving} loading={saving}>
-            <FontAwesomeIcon icon={faCheck} className="me-1" /> Save
-          </Button>
+          {hasChanges && (
+            <span className="small text-danger fw-semibold align-self-center">
+              Unsaved changes: save to enable Print.
+            </span>
+          )}
+          {canPrint && (
+            <Button variant="secondary" onClick={() => window.open(`/gutter/${projectId}/print`, "_blank")}>
+              <FontAwesomeIcon icon={faPrint} className="me-1" /> Print / PDF
+            </Button>
+          )}
         </div>
       </div>
 

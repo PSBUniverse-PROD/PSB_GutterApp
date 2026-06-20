@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/core/supabase/admin";
-import { calculateQuote } from "./gutter.data";
+import { calculateQuote, calculateMaterials } from "./gutter.data";
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -295,6 +295,75 @@ export async function saveGutterProject({ isEdit, projectId, header, sides, extr
   if (extraRows.length > 0) {
     const { error } = await supabase.from("gtr_m_project_extras").insert(extraRows.map((r) => ({ proj_id: currentProjId, ...r })));
     if (error) throw new Error("Error saving extras: " + error.message);
+  }
+
+  // ─── Auto-sync Work Order & Purchase Order ──────────────
+  try {
+    // Build section data for material calculation
+    const sectionData = sideRows.map((r) => ({
+      sides: r.segments,
+      length: r.length,
+      height: r.height,
+      downspoutQty: r.downspout_qty,
+      gutterColor: "",
+      downspoutColor: "",
+    }));
+
+    const materials = calculateMaterials({ sections: sectionData });
+
+    // Auto-save / update Purchase Order
+    const { data: existingPO } = await supabase
+      .from("gtr_m_purchorder")
+      .select("purch_order_id")
+      .eq("proj_id", currentProjId)
+      .maybeSingle();
+
+    const poPayload = {
+      k_style_gutter_color: null,
+      downspout_color: null,
+      gutter_coil_total_ft: materials?.gutterCoil?.totalFt ?? 0,
+      gutter_coil_total_lbs: materials?.gutterCoil?.totalLbs ?? 0,
+      right_end_caps_qty: Math.round(materials?.endCaps?.right?.qty ?? 0),
+      left_end_caps_qty: Math.round(materials?.endCaps?.left?.qty ?? 0),
+      downpipe_qty: Math.round(materials?.downpipe?.qty ?? 0),
+      one_piece_offset_qty: Math.round(materials?.onePieceOffset?.qty ?? 0),
+      elbow_a_qty: Math.round(materials?.elbow?.qty ?? 0),
+      spray_paint_qty: 0,
+      zip_screws_qty: 0,
+      zip_screws_internal_qty: Math.round(materials?.internal?.internalScrews ?? 0),
+      total_downspouts: Math.round(materials?.internal?.totalDownspouts ?? 0),
+      total_endcaps: Math.round(materials?.internal?.totalEndcaps ?? 0),
+      rectangular_outlets: Math.round(materials?.internal?.rectangularOutlets ?? 0),
+      internal_screws: Math.round(materials?.internal?.internalScrews ?? 0),
+      hidden_hangers_qty: Math.round(materials?.internal?.hiddenHangers ?? 0),
+      box_screws_qty: Math.round(materials?.internal?.boxScrews ?? 0),
+    };
+
+    if (existingPO?.purch_order_id) {
+      await supabase
+        .from("gtr_m_purchorder")
+        .update({ ...poPayload, updated_at: now })
+        .eq("proj_id", currentProjId);
+    } else {
+      await supabase
+        .from("gtr_m_purchorder")
+        .insert({ proj_id: currentProjId, ...poPayload, created_at: now, updated_at: now });
+    }
+
+    // Auto-save / update Work Order (basic info only)
+    const { data: existingWO } = await supabase
+      .from("gtr_t_workorders")
+      .select("workorder_id")
+      .eq("proj_id", currentProjId)
+      .maybeSingle();
+
+    if (!existingWO?.workorder_id) {
+      await supabase
+        .from("gtr_t_workorders")
+        .insert({ proj_id: currentProjId, created_at: now, updated_at: now });
+    }
+  } catch {
+    // Non-blocking: project save succeeded, sync failure is secondary
   }
 
   return { projId: currentProjId };
