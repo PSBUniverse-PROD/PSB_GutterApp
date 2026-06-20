@@ -295,7 +295,27 @@ export async function deleteGutterProject(projId) {
 
 // ─── Purchase Order ────────────────────────────────────────
 
-export async function savePurchaseOrder(projId, purchaseOrder, userId = null) {
+async function resolveCurrentUserId(supabase) {
+  try {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get("sb-access-token")?.value
+      || cookieStore.get("psb_session")?.value;
+    if (!accessToken) return null;
+    const { data: authData } = await supabase.auth.getUser(accessToken);
+    if (!authData?.user?.id) return null;
+    const { data: dbUser } = await supabase
+      .from("psb_s_user")
+      .select("user_id")
+      .eq("auth_user_id", authData.user.id)
+      .maybeSingle();
+    return dbUser?.user_id || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function savePurchaseOrder(projId, purchaseOrder) {
   const id = toIntOrNull(projId);
   if (id === null) throw new Error("projId is required");
   const po = purchaseOrder && typeof purchaseOrder === "object" ? purchaseOrder : {};
@@ -326,6 +346,7 @@ export async function savePurchaseOrder(projId, purchaseOrder, userId = null) {
 
   const supabase = getSupabaseAdmin();
   const now = new Date().toISOString();
+  const userId = await resolveCurrentUserId(supabase);
 
   const { data: existing } = await supabase
     .from("gtr_m_purchorder")
@@ -336,7 +357,7 @@ export async function savePurchaseOrder(projId, purchaseOrder, userId = null) {
   if (existing?.purch_order_id) {
     const { data, error } = await supabase
       .from("gtr_m_purchorder")
-      .update({ ...normalized, updated_at: now })
+      .update({ ...normalized, updated_by: userId, updated_at: now })
       .eq("proj_id", id)
       .select("*")
       .single();
@@ -346,7 +367,7 @@ export async function savePurchaseOrder(projId, purchaseOrder, userId = null) {
 
   const { data, error } = await supabase
     .from("gtr_m_purchorder")
-    .insert({ proj_id: id, ...normalized, created_at: now, updated_at: now })
+    .insert({ proj_id: id, ...normalized, created_by: userId, updated_by: userId, created_at: now, updated_at: now })
     .select("*")
     .single();
   if (error) throw new Error(error.message);
