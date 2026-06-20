@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Container, Row, Col, Form } from "react-bootstrap";
+import { Container, Form } from "react-bootstrap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faPrint, faCheck, faRulerCombined, faBoxOpen, faSignsPost } from "@fortawesome/free-solid-svg-icons";
 import { faBuilding, faPenToSquare, faIdBadge, faNoteSticky } from "@fortawesome/free-regular-svg-icons";
@@ -61,6 +62,7 @@ const buildInitialWorkOrder = (saved) => {
 };
 
 export default function GutterWorkOrderView({ projectId, projectData, manufacturerName, workOrderData }) {
+  const router = useRouter();
   const header = projectData?.projectHeader || null;
   const sides = projectData?.projectSides || [];
   const colors = projectData?.colors || [];
@@ -70,6 +72,7 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
   const [baselineSnapshot, setBaselineSnapshot] = useState(() => workOrderData ? JSON.stringify(initialWorkOrder) : null);
 
   const [saving, setSaving] = useState(false);
+  const [navigatingPrint, setNavigatingPrint] = useState(false);
 
   const colorById = useMemo(() => {
     const map = {};
@@ -116,7 +119,6 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
 
   const currentSnapshot = useMemo(() => JSON.stringify(workOrder), [workOrder]);
   const hasChanges = baselineSnapshot === null || currentSnapshot !== baselineSnapshot;
-  const canPrint = baselineSnapshot !== null && !hasChanges;
 
   const saveWorkOrder = useCallback(async () => {
     setSaving(true);
@@ -163,32 +165,23 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
     });
   };
 
-  const handlePrintPdf = useCallback(async () => {
-    const { pdf } = await import("@react-pdf/renderer");
-    const { WorkOrderPdf } = await import("./GutterPdfDocuments");
-    const doc = (
-      <WorkOrderPdf
-        header={header}
-        sides={sides}
-        materials={materials}
-        zipScrewsBags={workOrder.zipScrewsBags}
-        workOrderData={workOrder}
-        companyProfile={{ name: manufacturerName || "Company", email: "", phone: "" }}
-      />
-    );
-    const blob = await pdf(doc).toBlob();
-    const url = URL.createObjectURL(blob);
-    const customer = (header.customer || "").replace(/[^a-zA-Z0-9]/g, "_");
-    const project = (header.project_name || "").replace(/[^a-zA-Z0-9]/g, "_");
-    const filename = ["WorkOrder", customer, project].filter(Boolean).join("_") + ".pdf";
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [header, sides, materials, workOrder, manufacturerName]);
+  // Navigate to print page — auto-save if needed before navigating
+  const handlePrint = useCallback(async () => {
+    if (hasChanges) {
+      setNavigatingPrint(true);
+      try {
+        await saveGutterWorkOrder({ projectId, workOrder });
+        setBaselineSnapshot(currentSnapshot);
+      } catch (err) {
+        toastError(err?.message || "Error saving before print. Please save manually.", "Work Order");
+        setNavigatingPrint(false);
+        return;
+      } finally {
+        setNavigatingPrint(false);
+      }
+    }
+    router.push(`/gutter/${projectId}/print`);
+  }, [hasChanges, projectId, workOrder, router, saveGutterWorkOrder, currentSnapshot]);
 
   if (!header) return <Container className="py-4">Project not found.</Container>;
 
@@ -219,16 +212,9 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
           <Button variant="success" onClick={saveWorkOrder} disabled={saving || !hasChanges} loading={saving}>
             <FontAwesomeIcon icon={faCheck} className="me-1" /> Save Work Order
           </Button>
-          {hasChanges && (
-            <span className="small text-danger fw-semibold align-self-center">
-              Unsaved changes: save to enable Print.
-            </span>
-          )}
-          {canPrint && (
-            <Button variant="secondary" onClick={handlePrintPdf}>
-              <FontAwesomeIcon icon={faPrint} className="me-1" /> Print / PDF
-            </Button>
-          )}
+          <Button variant="secondary" onClick={handlePrint} disabled={navigatingPrint} loading={navigatingPrint}>
+            <FontAwesomeIcon icon={faPrint} className="me-1" /> Print / PDF
+          </Button>
         </div>
       </div>
 
@@ -240,12 +226,12 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
           {/* Project + Gutter Config */}
           <div className={styles.woSection}>
             <div className={styles.woSectionHeader}>
-              <FontAwesomeIcon icon={faBuilding} /> Project &amp; Configuration
+              <FontAwesomeIcon icon={faBuilding} /> Project & Configuration
             </div>
             <div className={styles.woSectionBody}>
               <div className={styles.woInfoGrid}>
                 <div className={styles.woCompanyBlock}>
-                  <strong className={styles.woCompanyName}>Premium Gutters &amp; DOORS</strong>
+                  <strong className={styles.woCompanyName}>Premium Gutters & DOORS</strong>
                   <span className={styles.woCompanyDetail}>sales.pdg@premiumsteelgroup.com</span>
                   <span className={styles.woCompanyDetail}>817-502-2520</span>
                 </div>
@@ -270,7 +256,7 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
           {/* Gutter & Downspout Sections */}
           <div className={styles.woSection}>
             <div className={styles.woSectionHeader}>
-              <FontAwesomeIcon icon={faRulerCombined} /> Gutter &amp; Downspout Sections
+              <FontAwesomeIcon icon={faRulerCombined} /> Gutter & Downspout Sections
             </div>
             <div className={styles.woSectionBody}>
               {sectionRows.map((row) => (
@@ -326,7 +312,7 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
                 </thead>
                 <tbody>
                   <tr>
-                    <td>Gutter Coil 15&quot;</td>
+                    <td>Gutter Coil 15"</td>
                     <td>{toDecimalDisplay(materials?.gutterCoil?.totalFt)}</td>
                     <td>{Math.trunc(materials?.gutterCoil?.totalLbs || 0)}</td>
                     <td>{materials?.gutterCoil?.color || "--"}</td>
@@ -340,12 +326,12 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
                   <tr><th>Item</th><th>QTY</th><th>Color</th></tr>
                 </thead>
                 <tbody>
-                  <tr><td>Right End Caps - 6&quot; K-Style</td><td>{toWholeDisplay(materials?.endCaps?.right?.qty)}</td><td>{materials?.endCaps?.right?.color || "--"}</td></tr>
-                  <tr><td>Left End Caps - 6&quot; K-Style</td><td>{toWholeDisplay(materials?.endCaps?.left?.qty)}</td><td>{materials?.endCaps?.left?.color || "--"}</td></tr>
-                  <tr><td>3&quot; x 4&quot; Downpipe 10&apos;ft</td><td>{toWholeDisplay(materials?.downpipe?.qty)}</td><td>{materials?.downpipe?.color || "--"}</td></tr>
-                  <tr><td>3&quot; x 4&quot; - 6&quot; One Piece Offset</td><td>{toWholeDisplay(materials?.onePieceOffset?.qty)}</td><td>{materials?.onePieceOffset?.color || "--"}</td></tr>
-                  <tr><td>3&quot; x 4&quot; -(A) Elbow</td><td>{toWholeDisplay(materials?.elbow?.qty)}</td><td>{materials?.elbow?.color || "--"}</td></tr>
-                  <tr><td>6&quot; Hidden Hangers</td><td>{toWholeDisplay(materials?.internal?.hiddenHangers)}</td><td>Auto</td></tr>
+                  <tr><td>Right End Caps - 6" K-Style</td><td>{toWholeDisplay(materials?.endCaps?.right?.qty)}</td><td>{materials?.endCaps?.right?.color || "--"}</td></tr>
+                  <tr><td>Left End Caps - 6" K-Style</td><td>{toWholeDisplay(materials?.endCaps?.left?.qty)}</td><td>{materials?.endCaps?.left?.color || "--"}</td></tr>
+                  <tr><td>3" x 4" Downpipe 10'ft</td><td>{toWholeDisplay(materials?.downpipe?.qty)}</td><td>{materials?.downpipe?.color || "--"}</td></tr>
+                  <tr><td>3" x 4" - 6" One Piece Offset</td><td>{toWholeDisplay(materials?.onePieceOffset?.qty)}</td><td>{materials?.onePieceOffset?.color || "--"}</td></tr>
+                  <tr><td>3" x 4" -(A) Elbow</td><td>{toWholeDisplay(materials?.elbow?.qty)}</td><td>{materials?.elbow?.color || "--"}</td></tr>
+                  <tr><td>6" Hidden Hangers</td><td>{toWholeDisplay(materials?.internal?.hiddenHangers)}</td><td>Auto</td></tr>
                 </tbody>
               </table>
             </div>
@@ -425,7 +411,7 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
           {/* Zip Screws */}
           <div className={styles.woSection}>
             <div className={styles.woSectionHeader}>
-              <FontAwesomeIcon icon={faBoxOpen} /> #8 x 1/2&quot; Zip Screws <span style={{ fontWeight: 400, fontSize: "0.8rem", color: "#6c757d" }}>(100 per bag)</span>
+              <FontAwesomeIcon icon={faBoxOpen} /> #8 x 1/2" Zip Screws <span style={{ fontWeight: 400, fontSize: "0.8rem", color: "#6c757d" }}>(100 per bag)</span>
             </div>
             <div className={styles.woSectionBody}>
               {workOrder.zipScrewsBags.map((row, i) => (
