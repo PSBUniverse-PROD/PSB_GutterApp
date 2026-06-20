@@ -2,24 +2,25 @@
  * Authentication Login Endpoint
  * POST /api/auth/login
  * Generates session token after Supabase authentication
+ *
+ * Note: CORS headers are no longer needed. All SSO validation is done
+ * locally via the psb_user_payload cookie (scoped to .psbuniverse.com).
  */
 
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/core/supabase/admin';
 import { createUserSession } from '@/core/auth/session.service';
 import { getPSBSessionCookieHeader, getPSBUserPayloadCookieHeader } from '@/core/auth/cookies.utils';
-import { getCORSHeaders } from '@/core/auth/cors.utils';
 
 export async function POST(request) {
   try {
     const body = await request.json();
     const { accessToken } = body;
-    const corsHeaders = getCORSHeaders(request);
 
     if (!accessToken) {
       return NextResponse.json(
         { error: 'Access token is required' },
-        { status: 400, headers: corsHeaders }
+        { status: 400 }
       );
     }
 
@@ -30,7 +31,7 @@ export async function POST(request) {
     if (authError || !authData?.user) {
       return NextResponse.json(
         { error: 'Invalid or expired access token' },
-        { status: 401, headers: corsHeaders }
+        { status: 401 }
       );
     }
 
@@ -93,7 +94,7 @@ export async function POST(request) {
     if (!dbUser) {
       return NextResponse.json(
         { error: 'User not found in system' },
-        { status: 404, headers: corsHeaders }
+        { status: 404 }
       );
     }
 
@@ -112,7 +113,7 @@ export async function POST(request) {
           name: `${dbUser.first_name || ''} ${dbUser.last_name || ''}`.trim(),
         },
       },
-      { status: 200, headers: corsHeaders }
+      { status: 200 }
     );
 
     // Set secure session cookie (HttpOnly — not readable by JS, used for API auth)
@@ -132,17 +133,7 @@ export async function POST(request) {
     console.error('Login endpoint error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500, headers: getCORSHeaders(request) }
+      { status: 500 }
     );
   }
-}
-
-export async function OPTIONS(request) {
-  return NextResponse.json(
-    {},
-    {
-      status: 200,
-      headers: getCORSHeaders(request),
-    }
-  );
 }

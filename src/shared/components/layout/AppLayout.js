@@ -11,6 +11,7 @@ import {
   NAVBAR_LOADER_START_EVENT,
 } from "@/shared/utils/navbar-loader";
 import { logout as ssoLogout } from "@/core/sso-client";
+import { validateRedirectUrl } from "@/core/auth/redirect-validator";
 
 const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://www.psbuniverse.com";
 
@@ -234,7 +235,17 @@ export default function AppLayout({ children }) {
   useEffect(() => {
     if (!loading && isAuthenticated && isLoginPage) {
       startLoader();
-      window.location.href = `${CORE_PORTAL_URL}/dashboard`;
+      // If a redirect param was provided (e.g. from proxy middleware),
+      // go there instead of the default Core Portal dashboard.
+      // This allows users to log in and be sent back to their original destination.
+      const params = new URLSearchParams(window.location.search);
+      const redirectParam = params.get("redirect");
+      if (redirectParam) {
+        const safeUrl = validateRedirectUrl(redirectParam, `${CORE_PORTAL_URL}/dashboard`);
+        window.location.href = safeUrl;
+      } else {
+        window.location.href = `${CORE_PORTAL_URL}/dashboard`;
+      }
     }
   }, [isAuthenticated, isLoginPage, loading, router, startLoader]);
 

@@ -1,28 +1,27 @@
 /**
  * Token Validation Endpoint
- * POST /api/auth/validate-token
+ * GET /api/auth/validate-token
  * Validates session token and returns payload
+ *
+ * Note: CORS headers are no longer needed. All SSO validation is done
+ * locally via the psb_user_payload cookie (scoped to .psbuniverse.com).
+ * This endpoint is kept as a server-side utility for internal use.
  */
 
 import { NextResponse } from 'next/server';
 import { verifyToken, isTokenValid } from '@/core/auth/jwt.utils';
 import { isSessionInvalidated } from '@/core/auth/session.service';
 import { getPSBSessionCookieFromRequest } from '@/core/auth/cookies.utils';
-import { getCORSHeaders } from '@/core/auth/cors.utils';
 
 export async function GET(request) {
   try {
     // Get token from request
     const token = getPSBSessionCookieFromRequest(request);
-    const corsHeaders = getCORSHeaders(request);
 
     if (!token) {
       return NextResponse.json(
         { valid: false, error: 'No session token found' },
-        {
-          status: 401,
-          headers: corsHeaders,
-        }
+        { status: 401 }
       );
     }
 
@@ -33,10 +32,7 @@ export async function GET(request) {
     } catch (error) {
       return NextResponse.json(
         { valid: false, error: error.message },
-        {
-          status: 401,
-          headers: corsHeaders,
-        }
+        { status: 401 }
       );
     }
 
@@ -45,10 +41,7 @@ export async function GET(request) {
     if (invalidated) {
       return NextResponse.json(
         { valid: false, error: 'Session has been invalidated' },
-        {
-          status: 401,
-          headers: corsHeaders,
-        }
+        { status: 401 }
       );
     }
 
@@ -66,19 +59,13 @@ export async function GET(request) {
           expiresAt: payload.expiresAt,
         },
       },
-      {
-        status: 200,
-        headers: corsHeaders,
-      }
+      { status: 200 }
     );
   } catch (error) {
     console.error('Token validation error:', error);
     return NextResponse.json(
       { valid: false, error: 'Internal server error' },
-      {
-        status: 500,
-        headers: getCORSHeaders(request),
-      }
+      { status: 500 }
     );
   }
 }
@@ -87,15 +74,11 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { token } = body;
-    const corsHeaders = getCORSHeaders(request);
 
     if (!token) {
       return NextResponse.json(
         { valid: false, error: 'Token is required' },
-        {
-          status: 400,
-          headers: corsHeaders,
-        }
+        { status: 400 }
       );
     }
 
@@ -106,10 +89,7 @@ export async function POST(request) {
     } catch (error) {
       return NextResponse.json(
         { valid: false, error: error.message },
-        {
-          status: 401,
-          headers: corsHeaders,
-        }
+        { status: 401 }
       );
     }
 
@@ -118,10 +98,7 @@ export async function POST(request) {
     if (invalidated) {
       return NextResponse.json(
         { valid: false, error: 'Session has been invalidated' },
-        {
-          status: 401,
-          headers: corsHeaders,
-        }
+        { status: 401 }
       );
     }
 
@@ -139,29 +116,13 @@ export async function POST(request) {
           expiresAt: payload.expiresAt,
         },
       },
-      {
-        status: 200,
-        headers: corsHeaders,
-      }
+      { status: 200 }
     );
   } catch (error) {
     console.error('Token validation error:', error);
     return NextResponse.json(
       { valid: false, error: 'Internal server error' },
-      {
-        status: 500,
-        headers: getCORSHeaders(request),
-      }
+      { status: 500 }
     );
   }
-}
-
-export async function OPTIONS(request) {
-  return NextResponse.json(
-    {},
-    {
-      status: 200,
-      headers: getCORSHeaders(request),
-    }
-  );
 }

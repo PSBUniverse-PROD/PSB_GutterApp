@@ -1,187 +1,15 @@
 /**
  * SSO Client for PSBUniverse Modules
- * Handles cross-subdomain authentication with Core Portal
+ * Handles cross-subdomain authentication via shared cookies
  *
- * This utility validates the psb_session cookie (set by psbuniverse.com)
- * against the Core Portal's validate-token endpoint, enabling seamless
- * SSO across all psbuniverse.com subdomains.
+ * Authentication flow:
+ *   1. Core Portal login sets psb_session (HttpOnly) + psb_user_payload (readable)
+ *   2. Both cookies scoped to .psbuniverse.com — visible to all subdomains
+ *   3. Subdomains read psb_user_payload cookie directly — no cross-origin API calls
+ *   4. No CORS headers needed — zero network requests for auth
  */
 
-const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://www.psbuniverse.com";
 const MODULE_ID = process.env.NEXT_PUBLIC_MODULE_ID;
-
-// Normalize core portal URL to avoid redirect issues (strip trailing slash, ensure protocol)
-function normalizeBaseUrl(url) {
-  const trimmed = String(url || "").trim().replace(/\/$/, "");
-  if (!trimmed) return "https://www.psbuniverse.com";
-  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
-    return `https://${trimmed}`;
-  }
-  return trimmed;
-}
-
-const NORMALIZED_CORE_PORTAL_URL = normalizeBaseUrl(CORE_PORTAL_URL);
-
-/**
- * Validate session token with Core Portal via cookie (GET request).
- * The browser automatically sends the psb_session cookie to the Core Portal
- * because it's scoped to Domain=.psbuniverse.com.
- *
- * @returns {Promise<Object|null>} Session payload { userId, email, fullName, modules, roles } or null
- */
-export async function validateSessionToken() {
-  // ── Primary: Local validation via psb_user_payload cookie ────────────────
-  // This cookie is set by Core Portal on login, scoped to .psbuniverse.com,
-  // and contains base64-encoded user data. Reading it locally means:
-  //   • No cross-origin API call
-  //   • No CORS headers needed
-  //   • No dependency on Core Portal being reachable
-  //   • ~0ms latency vs ~100-300ms for a round-trip
-  const localPayload = getPSBUserPayloadFromCookie();
-  if (localPayload) {
-    return localPayload;
-  }
-
-  // ── Fallback: Remote validation via Core Portal API ──────────────────────
-  // Used when the payload cookie is missing (e.g., first visit after login
-  // before the cookie is set, or cookie was cleared).
-  try {
-    const response = await fetch(`${NORMALIZED_CORE_PORTAL_URL}/api/auth/validate-token`, {
-      method: "GET",
-      credentials: "include", // Sends cookies cross-origin (psb_session)
-      headers: {
-        Accept: "application/json",
-      },
-      redirect: "manual", // Don't follow redirects — we need to detect them
-    });
-
-    // Handle redirects manually to avoid CORS issues
-    if (response.status === 301 || response.status === 302 || response.status === 308) {
-      const location = response.headers.get("location");
-      console.error(
-        `[SSO] Redirect detected (${response.status}) to ${location}. ` +
-        `Fix: Set NEXT_PUBLIC_CORE_PORTAL_URL to the exact origin that serves the API without redirects. ` +
-        `Current value: "${NORMALIZED_CORE_PORTAL_URL}". ` +
-        `If your site redirects to www or HTTPS, use that final URL instead.`
-      );
-      return null;
-    }
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json();
-    return data.valid ? data.payload : null;
-  } catch (error) {
-    console.error("SSO session validation error:", error);
-    return null;
-  }
-}
-
-/**
- * Validate a raw token string against Core Portal (POST request).
- * Useful when you have the token string directly rather than relying on cookies.
- *
- * @param {string} token - The JWT token string to validate
- * @returns {Promise<Object|null>} Session payload or null
- */
-export async function validateTokenString(token) {
-  if (!token) return null;
-
-  try {
-    const response = await fetch(`${NORMALIZED_CORE_PORTAL_URL}/api/auth/validate-token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ token }),
-      redirect: "manual",
-    });
-
-    if (response.status === 301 || response.status === 302 || response.status === 308) {
-      const location = response.headers.get("location");
-      if (location) {
-        console.warn(`[SSO] Redirect detected (${response.status}) to ${location}. Update NEXT_PUBLIC_CORE_PORTAL_URL to the final destination.`);
-      }
-      return null;
-    }
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json();
-    return data.valid ? data.payload : null;
-  } catch (error) {
-    console.error("SSO token validation error:", error);
-    return null;
-  }
-}
-
-/**
- * Check if the current user has access to this module.
- * The module ID is read from NEXT_PUBLIC_MODULE_ID environment variable.
- *
- * @returns {Promise<boolean>} True if user has access to this module
- */
-export async function hasModuleAccess() {
-  const session = await validateSessionToken();
-  if (!session) return false;
-
-  if (!MODULE_ID) {
-    console.warn("NEXT_PUBLIC_MODULE_ID is not configured");
-    return false;
-  }
-
-  // Check if module ID is in the modules array
-  return session.modules.includes(MODULE_ID);
-}
-
-/**
- * Check if the current user has access to a specific module by ID.
- *
- * @param {string} moduleId - Module ID to check access for
- * @returns {Promise<boolean>} True if user has access
- */
-export async function hasSpecificModuleAccess(moduleId) {
-  if (!moduleId) return false;
-
-  const session = await validateSessionToken();
-  if (!session) return false;
-
-  return session.modules.includes(moduleId);
-}
-
-/**
- * Get the current user's session data.
- * Returns the full session payload from the Core Portal.
- *
- * @returns {Promise<Object|null>} Session payload or null if not authenticated
- */
-export async function getCurrentSession() {
-  return validateSessionToken();
-}
-
-/**
- * Perform universal logout across all PSBUniverse modules.
- * Calls the Core Portal's logout endpoint which:
- * 1. Invalidates the session in the database
- * 2. Clears the psb_session cookie
- * 3. Records the logout in the audit trail
- */
-export async function logout() {
-  try {
-    await fetch(`${NORMALIZED_CORE_PORTAL_URL}/api/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-      redirect: "manual",
-    });
-  } catch (error) {
-    console.error("SSO logout error:", error);
-  }
-}
 
 // ── Local Cookie Helpers ────────────────────────────────────────────────────
 
@@ -190,7 +18,7 @@ const USER_PAYLOAD_COOKIE_NAME = 'psb_user_payload';
 /**
  * Read and parse the psb_user_payload cookie set by Core Portal.
  * This cookie is scoped to .psbuniverse.com and contains base64-encoded
- * user data, enabling local JWT validation without cross-origin API calls.
+ * user data, enabling local auth validation without cross-origin API calls.
  *
  * @returns {Object|null} Session payload { userId, email, fullName, modules, roles } or null
  */
@@ -239,14 +67,13 @@ export function getPSBUserPayloadFromCookie() {
 
 /**
  * Clear the local user payload cookie (client-side).
- * Called on logout.
+ * Called on logout to ensure auth state is reset immediately.
  */
 export function clearPSBUserPayloadCookie() {
   if (typeof document === 'undefined') {
     return;
   }
 
-  // Must match the domain used when setting the cookie
   const domain = process.env.NEXT_PUBLIC_COOKIE_DOMAIN || '.psbuniverse.com';
 
   let cookieStr = `${USER_PAYLOAD_COOKIE_NAME}=`;
@@ -262,6 +89,88 @@ export function clearPSBUserPayloadCookie() {
   document.cookie = cookieStr;
 }
 
+// ── Session Validation — Local Only ────────────────────────────────────────
+
+/**
+ * Validate session by reading the psb_user_payload cookie locally.
+ * No cross-origin API calls. No CORS. ~0ms latency.
+ *
+ * The cookie is set by Core Portal on login and scoped to .psbuniverse.com
+ * so it's automatically available on all subdomains.
+ *
+ * @returns {Promise<Object|null>} Session payload { userId, email, fullName, modules, roles } or null
+ */
+export async function validateSessionToken() {
+  return getPSBUserPayloadFromCookie();
+}
+
+/**
+ * Get the current user's session data (local-only).
+ * @returns {Promise<Object|null>} Session payload or null
+ */
+export async function getCurrentSession() {
+  return validateSessionToken();
+}
+
+// ── Module Access ──────────────────────────────────────────────────────────
+
+/**
+ * Check if the current user has access to this module.
+ * The module ID is read from NEXT_PUBLIC_MODULE_ID environment variable.
+ *
+ * @returns {Promise<boolean>} True if user has access to this module
+ */
+export async function hasModuleAccess() {
+  const session = await validateSessionToken();
+  if (!session) return false;
+
+  if (!MODULE_ID) {
+    console.warn("NEXT_PUBLIC_MODULE_ID is not configured");
+    return false;
+  }
+
+  return session.modules.includes(MODULE_ID);
+}
+
+/**
+ * Check if the current user has access to a specific module by ID.
+ *
+ * @param {string} moduleId - Module ID to check access for
+ * @returns {Promise<boolean>} True if user has access
+ */
+export async function hasSpecificModuleAccess(moduleId) {
+  if (!moduleId) return false;
+
+  const session = await validateSessionToken();
+  if (!session) return false;
+
+  return session.modules.includes(moduleId);
+}
+
+// ── Logout ──────────────────────────────────────────────────────────────────
+
+/**
+ * Perform universal logout across all PSBUniverse modules.
+ * Calls the logout endpoint to invalidate session in database and clear cookies.
+ */
+export async function logout() {
+  try {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch (error) {
+    console.error("SSO logout error:", error);
+  }
+
+  // Also clear the client-side payload cookie immediately
+  clearPSBUserPayloadCookie();
+}
+
+// ── Navigation ──────────────────────────────────────────────────────────────
+
+const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://www.psbuniverse.com";
+
 /**
  * Redirect user to the Core Portal login page.
  * Uses the redirect validator to prevent open redirect vulnerabilities.
@@ -270,7 +179,7 @@ export function clearPSBUserPayloadCookie() {
  * @param {string} [returnPath] - Path to return to after login (e.g., "/gutter/dashboard")
  */
 export function redirectToLogin(returnPath) {
-  const loginUrl = new URL("/login", NORMALIZED_CORE_PORTAL_URL);
+  const loginUrl = new URL("/login", CORE_PORTAL_URL);
 
   if (returnPath) {
     const trimmed = String(returnPath || "").trim();
@@ -281,6 +190,8 @@ export function redirectToLogin(returnPath) {
 
   window.location.href = loginUrl.toString();
 }
+
+// ── SSO ↔ AuthProvider Bridge ───────────────────────────────────────────────
 
 /**
  * Build a pseudo-auth user object from SSO session payload.
@@ -300,7 +211,6 @@ export function buildUserFromSSOSession(session) {
       full_name: session.fullName || "",
       email: session.email || "",
     },
-    // Add the SSO session marker so downstream code can detect SSO auth
     app_metadata: {
       sso_authenticated: true,
     },

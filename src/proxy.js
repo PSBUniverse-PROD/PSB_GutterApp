@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getCORSHeaders } from "@/core/auth/cors.utils";
 
 /**
  * SSO Proxy Middleware for PSBUniverse
@@ -10,6 +9,9 @@ import { getCORSHeaders } from "@/core/auth/cors.utils";
  * 2. Redirects to login if token is missing or invalid
  * 3. Allows login page and API routes to bypass authentication
  * 4. Works across all PSBUniverse subdomains
+ * 
+ * Note: CORS headers are no longer needed. All SSO validation is done
+ * locally via the psb_user_payload cookie (scoped to .psbuniverse.com).
  */
 
 export function proxy(req) {
@@ -23,12 +25,7 @@ export function proxy(req) {
   const isPublicAsset = pathname.includes("_next") || pathname === "/favicon.ico";
 
   if (isApiRoute || isPublicAsset) {
-    const response = NextResponse.next();
-    const corsHeaders = getCORSHeaders(req);
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-      response.headers.set(key, value);
-    });
-    return response;
+    return NextResponse.next();
   }
 
   // ── Check for SSO session token ────────────────────────────────────────
@@ -40,19 +37,15 @@ export function proxy(req) {
     token = String(req.cookies.get("sb-access-token")?.value || "").trim();
   }
 
-  // ── Redirect to login if no token ────────────────────────────────────────
+  // ── Redirect to login if no token, preserving original URL ──────────────
   if (!token && !isLoginPage) {
+    // Use full absolute URL so redirect survives domain changes
     url.pathname = "/login";
+    url.searchParams.set("redirect", req.nextUrl.toString());
     const response = NextResponse.redirect(url);
     
     // Add Cache-Control to prevent caching redirects
     response.headers.set("Cache-Control", "no-store, must-revalidate");
-    
-    // Add CORS headers to redirect response so they survive domain redirects
-    const corsHeaders = getCORSHeaders(req);
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-      response.headers.set(key, value);
-    });
     
     return response;
   }
@@ -62,12 +55,6 @@ export function proxy(req) {
   
   // Add security headers for SSO system
   response.headers.set("X-SSO-Enabled", "true");
-  
-  // Add CORS headers to all responses
-  const corsHeaders = getCORSHeaders(req);
-  Object.entries(corsHeaders).forEach(([key, value]) => {
-    response.headers.set(key, value);
-  });
   
   return response;
 }
