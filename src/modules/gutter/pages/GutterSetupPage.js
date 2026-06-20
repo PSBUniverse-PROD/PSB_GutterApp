@@ -1,4 +1,4 @@
-import { loadGutterSetup } from "../data/gutter.actions";
+import { loadGutterSetup } from "../data/gutter.server";
 import GutterSetupView from "./setup/GutterSetupView";
 import "./setup/setup-workspace.css";
 

@@ -1,4 +1,4 @@
-import { loadGutterProjects } from "../data/gutter.actions";
+import { loadGutterProjects } from "../data/gutter.server";
 import GutterView from "./GutterView";
 
 export const dynamic = "force-dynamic";

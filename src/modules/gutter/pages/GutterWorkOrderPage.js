@@ -1,4 +1,4 @@
-import { loadGutterProject, loadGutterWorkOrder } from "../data/gutter.actions";
+import { loadGutterProject, loadGutterWorkOrder } from "../data/gutter.server";
 import { getSupabaseAdmin } from "@/core/supabase/admin";
 import GutterWorkOrderView from "./GutterWorkOrderView";
 
