@@ -30,8 +30,8 @@ export async function POST(request) {
     // Clear session cookie
     response.headers.set('Set-Cookie', getClearPSBSessionCookieHeader());
 
-    // Clear shared payload cookie
-    response.headers.set('Set-Cookie', getClearPSBUserPayloadCookieHeader());
+    // Clear shared payload cookie (use append to avoid overwriting)
+    response.headers.append('Set-Cookie', getClearPSBUserPayloadCookieHeader());
 
     return response;
   } catch (error) {
@@ -45,8 +45,8 @@ export async function POST(request) {
 
     response.headers.set('Set-Cookie', getClearPSBSessionCookieHeader());
 
-    // Clear shared payload cookie
-    response.headers.set('Set-Cookie', getClearPSBUserPayloadCookieHeader());
+    // Clear shared payload cookie (use append to avoid overwriting)
+    response.headers.append('Set-Cookie', getClearPSBUserPayloadCookieHeader());
 
     return response;
   }

@@ -120,7 +120,8 @@ export async function POST(request) {
     response.headers.set('Set-Cookie', getPSBSessionCookieHeader(session.token));
 
     // Set shared payload cookie (readable by JS on all subdomains — enables local JWT validation)
-    response.headers.set('Set-Cookie', getPSBUserPayloadCookieHeader({
+    // Use append() to avoid overwriting the previous Set-Cookie header
+    response.headers.append('Set-Cookie', getPSBUserPayloadCookieHeader({
       userId: dbUser.user_id,
       email: authUser.email,
       fullName: `${dbUser.first_name || ''} ${dbUser.last_name || ''}`.trim(),
