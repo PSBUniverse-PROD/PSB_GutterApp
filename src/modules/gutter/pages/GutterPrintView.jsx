@@ -53,6 +53,30 @@ export default function GutterPrintView({ projectId, projectData, setup, storedP
   // Normalize setup
   const statuses = useMemo(() => normalizeStatuses(setup?.statuses), [setup]);
   const colors = useMemo(() => normalizeColors(setup?.colors || projectData?.colors), [setup, projectData]);
+
+  // Build color lookup map (color_id → name)
+  const colorById = useMemo(() => {
+    const map = {};
+    (Array.isArray(colors) ? colors : []).forEach((c) => { map[String(c.color_id)] = c.name; });
+    return map;
+  }, [colors]);
+
+  // Build sections array with resolved color names (for calculateMaterials)
+  const sections = useMemo(() => {
+    return (Array.isArray(sides) ? sides : []).map((side) => {
+      const gutterColor = colorById[String(side.gutter_color_id)] || "--";
+      const downspoutColor = colorById[String(side.downspout_color_id)] || gutterColor || "--";
+      return {
+        sides: side.segments,
+        length: side.length,
+        height: side.height,
+        downspoutQty: side.downspout_qty,
+        gutterColor,
+        downspoutColor,
+      };
+    });
+  }, [sides, colorById]);
+
   const manufacturers = useMemo(() => normalizeManufacturers(setup?.manufacturers), [setup]);
   const leafGuards = useMemo(() => normalizeLeafGuards(setup?.leafGuards), [setup]);
   const tripRates = useMemo(() => normalizeTripRates(setup?.tripRates), [setup]);
@@ -83,7 +107,7 @@ export default function GutterPrintView({ projectId, projectData, setup, storedP
   }, [project, quoteSetup]);
 
   // Calculate materials
-  const materials = useMemo(() => calculateMaterials(projectData), [projectData]);
+  const materials = useMemo(() => calculateMaterials({ sections }), [sections]);
 
   // Derived values
   const selectedManufacturer = manufacturers.find((m) => String(m.manufacturer_id) === String(header?.manufacturer_id));
