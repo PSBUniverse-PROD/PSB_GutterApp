@@ -12,8 +12,14 @@ const ALLOWED_HOST_SUFFIXES = [
   ".psbuniverse.vercel.app", // Vercel preview deployments
 ];
 
+// Allow custom redirect hosts via environment variable (comma-separated)
+const ENV_ALLOWED_HOSTS = (process.env.NEXT_PUBLIC_ALLOWED_REDIRECT_HOSTS || "")
+  .split(",")
+  .map(s => s.trim())
+  .filter(Boolean);
+
 const ALLOWED_EXACT_HOSTS = [
-  // Add any non-subdomain hosts that are allowed
+  ...ENV_ALLOWED_HOSTS,
 ];
 
 // ── Public API ──────────────────────────────────────────────
@@ -53,8 +59,13 @@ export function validateRedirectUrl(redirectUrl, fallbackUrl = "/dashboard") {
   try {
     const url = new URL(trimmed);
 
-    // Check exact host whitelist
+    // Check exact host whitelist (url.host includes port, e.g. "localhost:3000")
     if (ALLOWED_EXACT_HOSTS.includes(url.host)) {
+      return trimmed;
+    }
+
+    // Allow localhost on any port (for local development)
+    if (url.hostname === "localhost") {
       return trimmed;
     }
 
