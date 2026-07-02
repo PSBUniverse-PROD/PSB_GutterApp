@@ -9,17 +9,7 @@ const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://www.
 // ── Configuration ───────────────────────────────────────────
 const ALLOWED_HOST_SUFFIXES = [
   ".psbuniverse.com",
-  ".psbuniverse.vercel.app", // Vercel preview deployments
-];
-
-// Allow custom redirect hosts via environment variable (comma-separated)
-const ENV_ALLOWED_HOSTS = (process.env.NEXT_PUBLIC_ALLOWED_REDIRECT_HOSTS || "")
-  .split(",")
-  .map(s => s.trim())
-  .filter(Boolean);
-
-const ALLOWED_EXACT_HOSTS = [
-  ...ENV_ALLOWED_HOSTS,
+  ".vercel.app", // All Vercel deployments (preview, dev, etc.)
 ];
 
 // ── Public API ──────────────────────────────────────────────
@@ -58,11 +48,6 @@ export function validateRedirectUrl(redirectUrl, fallbackUrl = "/dashboard") {
 
   try {
     const url = new URL(trimmed);
-
-    // Check exact host whitelist (url.host includes port, e.g. "localhost:3000")
-    if (ALLOWED_EXACT_HOSTS.includes(url.host)) {
-      return trimmed;
-    }
 
     // Allow localhost on any port (for local development)
     if (url.hostname === "localhost") {
