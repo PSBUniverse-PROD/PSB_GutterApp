@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "react-bootstrap";
 import Form from "react-bootstrap/Form";
 
-const CORE_PORTAL_URL = process.env.NEXT_PUBLIC_CORE_PORTAL_URL || "https://www.psbuniverse.com";
 const DALLAS_TIME_ZONE = "America/Chicago";
 
 function getDallasHour() {
@@ -136,13 +135,13 @@ export default function Header({
       {
         key: "my-psb",
         label: "My PSB",
-        href: `${CORE_PORTAL_URL}/profile`,
+        href: "/profile",
         active: isMyPsbPath(pathname),
       },
       {
         key: "my-apps",
         label: "My Apps",
-        href: `${CORE_PORTAL_URL}/dashboard`,
+        href: "/dashboard",
         active: isMyAppsPath(pathname),
       },
     ];
@@ -151,14 +150,14 @@ export default function Header({
       nextTabs.push({
         key: "example",
         label: "Example",
-        href: `${CORE_PORTAL_URL}/examples`,
+        href: "/examples",
         active: isExamplesPath(pathname),
       });
 
       nextTabs.push({
         key: "docs",
         label: "Docs",
-        href: `${CORE_PORTAL_URL}/psbpages/documentation`,
+        href: "/psbpages/documentation",
         active: isDocsPath(pathname),
       });
     }
