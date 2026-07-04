@@ -9,6 +9,7 @@ import { faArrowLeft, faCheck, faPrint, faGear, faLayerGroup, faCirclePlus } fro
 import { faFolderOpen, faTrashCan, faFileLines } from "@fortawesome/free-regular-svg-icons";
 import { Button, Card, toastError, toastSuccess, toastWarning } from "@/shared/components/ui";
 import { saveGutterProject } from "../data/gutter.actions";
+import GutterSnapshotHistory from "../components/GutterSnapshotHistory";
 import styles from "./GutterProject.module.css";
 import {
   hasValue, asNumber, calculateQuote, formatCurrency, formatPercentLabel, toDisplayPercentValue,
@@ -29,7 +30,7 @@ function normalizePercentRateValue(value) {
   return Math.min(1, Math.max(0, n > 1 ? n / 100 : n));
 }
 
-export default function GutterProjectFormView({ mode = "create", projectId = null, setup = {}, projectData = null }) {
+export default function GutterProjectFormView({ mode = "create", projectId = null, setup = {}, projectData = null, snapshotCount = 0 }) {
   const router = useRouter();
   const isEdit = mode === "edit" && hasValue(projectId);
 
@@ -396,6 +397,9 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
             <Button variant="secondary" onClick={() => router.push(`/gutter/${projectId}/print`)}>
               <FontAwesomeIcon icon={faPrint} className="me-1" /> Print / PDF
             </Button>
+          )}
+          {isEdit && (
+            <GutterSnapshotHistory projectId={projectId} currentVersion={snapshotCount} />
           )}
         </div>
       </div>

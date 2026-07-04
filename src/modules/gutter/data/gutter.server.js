@@ -220,3 +220,42 @@ export async function loadGutterWorkOrder(projId) {
     zipScrewsBags,
   };
 }
+
+export async function loadProjectSnapshots(projId) {
+  const id = toIntOrNull(projId);
+  if (id === null) throw new Error("projId is required");
+
+  const supabase = getSupabaseAdmin();
+
+  const { data, error } = await supabase
+    .from("gtr_t_project_snapshots")
+    .select("snapshot_id, version_number, reason, created_at, created_by")
+    .eq("proj_id", id)
+    .order("version_number", { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  const userIds = Array.from(
+    new Set((data || []).map((s) => toIntOrNull(s.created_by)).filter((v) => v !== null))
+  );
+
+  let userById = new Map();
+  if (userIds.length > 0) {
+    const { data: users } = await supabase
+      .from("psb_s_user")
+      .select("*")
+      .in("user_id", userIds);
+    userById = (users || []).reduce((m, u) => {
+      m.set(String(u.user_id), u);
+      return m;
+    }, new Map());
+  }
+
+  return (data || []).map((s) => {
+    const user = userById.get(String(toIntOrNull(s.created_by)));
+    return {
+      ...s,
+      created_by_name: toUserDisplayName(user) || (s.created_by ? `User #${s.created_by}` : "System"),
+    };
+  });
+}

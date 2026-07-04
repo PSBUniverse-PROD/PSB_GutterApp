@@ -10,6 +10,7 @@ import { faBuilding, faPenToSquare, faIdBadge, faNoteSticky } from "@fortawesome
 import { Button, toastSuccess, toastError } from "@/shared/components/ui";
 import { calculateMaterials, calculateQuote } from "../data/gutter.data";
 import { saveGutterWorkOrder } from "../data/gutter.actions";
+import { getPSBUserPayloadFromCookie } from "@/core/sso-client";
 import styles from "./GutterWorkOrder.module.css";
 
 const MAX_SIZE_ROWS = 10;
@@ -123,7 +124,9 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
   const saveWorkOrder = useCallback(async () => {
     setSaving(true);
     try {
-      await saveGutterWorkOrder({ projectId, workOrder });
+      const session = getPSBUserPayloadFromCookie();
+      const userId = session?.userId || null;
+      await saveGutterWorkOrder({ projectId, workOrder, _userId: userId });
       setBaselineSnapshot(currentSnapshot);
       toastSuccess("Work order saved.", "Work Order");
     } catch (err) {

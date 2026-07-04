@@ -281,19 +281,170 @@ export async function saveGutterProject({ isEdit, projectId, header, sides, extr
 
 // ─── Update Status ─────────────────────────────────────────
 
-export async function updateGutterProjectStatus(projId, statusId) {
+export async function updateGutterProjectStatus(projId, statusId, userId = null) {
   const id = toIntOrNull(projId);
   const sid = toIntOrNull(statusId);
   if (id === null || sid === null) throw new Error("projId and statusId are required");
 
   const supabase = getSupabaseAdmin();
+
+  // Get current project status to detect transitions
+  const { data: currentProject, error: fetchError } = await supabase
+    .from("gtr_t_projects")
+    .select("status_id")
+    .eq("proj_id", id)
+    .maybeSingle();
+
+  if (fetchError) throw new Error(fetchError.message);
+
   const { error } = await supabase
     .from("gtr_t_projects")
     .update({ status_id: sid, updated_at: new Date().toISOString() })
     .eq("proj_id", id);
 
   if (error) throw new Error(error.message);
+
+  // Check if we need to create a snapshot based on status transition
+  if (currentProject?.status_id && currentProject.status_id !== sid) {
+    await createSnapshotForStatusTransition(id, currentProject.status_id, sid, userId);
+  }
+
   return { success: true };
+}
+
+async function createSnapshotForStatusTransition(projId, oldStatusId, newStatusId, userId) {
+  try {
+    const supabase = getSupabaseAdmin();
+
+    // Get status names
+    const [oldStatusResult, newStatusResult] = await Promise.all([
+      supabase.from("gtr_s_statuses").select("name").eq("status_id", oldStatusId).maybeSingle(),
+      supabase.from("gtr_s_statuses").select("name").eq("status_id", newStatusId).maybeSingle(),
+    ]);
+
+    const oldStatusName = oldStatusResult.data?.name || "";
+    const newStatusName = newStatusResult.data?.name || "";
+
+    // Determine if this transition requires a snapshot
+    let snapshotReason = null;
+
+    const oldLower = oldStatusName.toLowerCase();
+    const newLower = newStatusName.toLowerCase();
+
+    // Submitted for Review
+    if (newLower.includes("submit") || newLower.includes("review")) {
+      snapshotReason = "Quote Submitted";
+    }
+    // Approved
+    else if (newLower.includes("approve")) {
+      snapshotReason = "Quote Approved";
+    }
+    // Completed
+    else if (newLower.includes("complete")) {
+      snapshotReason = "Project Completed";
+    }
+    // Major revision: was approved, now back to in progress/draft
+    else if (oldLower.includes("approve") && (newLower.includes("progress") || newLower.includes("draft") || newLower.includes("revision"))) {
+      snapshotReason = "Major Revision After Approval";
+    }
+
+    if (!snapshotReason) return;
+
+    // Load full project data for snapshot
+    const { data: projectHeader, error: headerError } = await supabase
+      .from("gtr_t_projects")
+      .select("*")
+      .eq("proj_id", projId)
+      .maybeSingle();
+
+    if (headerError || !projectHeader) return;
+
+    const { data: sides, error: sidesError } = await supabase
+      .from("gtr_m_project_sides")
+      .select("*")
+      .eq("proj_id", projId)
+      .order("side_index");
+
+    if (sidesError) return;
+
+    const { data: extras, error: extrasError } = await supabase
+      .from("gtr_m_project_extras")
+      .select("*")
+      .eq("proj_id", projId)
+      .order("extra_id");
+
+    if (extrasError) return;
+
+    // Build snapshot using existing function
+    const { buildGutterProjectSnapshot } = await import("./gutter.data");
+    const quoteSetup = {
+      materialManufacturer: [],
+      leafGuard: [],
+      tripRates: [],
+      discounts: [],
+    };
+
+    const projectData = {
+      projId: projectHeader.proj_id,
+      statusId: String(projectHeader.status_id),
+      requestLink: projectHeader.request_link || "",
+      customer: projectHeader.customer || "",
+      date: projectHeader.date || "",
+      projectName: projectHeader.project_name || "",
+      projectAddress: projectHeader.project_address || "",
+      manufacturerId: projectHeader.manufacturer_id ? String(projectHeader.manufacturer_id) : "",
+      manualManufacturerRateEnabled: projectHeader.cstm_manufacturer_rate != null,
+      manualManufacturerRate: projectHeader.cstm_manufacturer_rate != null ? String(projectHeader.cstm_manufacturer_rate) : "",
+      tripId: projectHeader.trip_id ? String(projectHeader.trip_id) : "",
+      manualTripRateEnabled: projectHeader.cstm_trip_rate != null,
+      manualTripRate: projectHeader.cstm_trip_rate != null ? String(projectHeader.cstm_trip_rate) : "",
+      sections: (sides || []).map((s) => ({
+        colorId: s.gutter_color_id ? String(s.gutter_color_id) : "",
+        downspoutColorId: s.downspout_color_id ? String(s.downspout_color_id) : "",
+        sides: s.segments != null ? String(s.segments) : "",
+        length: s.length != null ? String(s.length) : "",
+        height: s.height != null ? String(s.height) : "",
+        downspoutQty: s.downspout_qty != null ? String(s.downspout_qty) : "",
+      })),
+      leafGuardIncluded: Boolean(projectHeader.leaf_guard_id || projectHeader.cstm_leaf_guard_price),
+      leafGuardId: projectHeader.leaf_guard_id ? String(projectHeader.leaf_guard_id) : "",
+      manualLeafGuardRateEnabled: projectHeader.cstm_leaf_guard_price != null,
+      manualLeafGuardRate: projectHeader.cstm_leaf_guard_price != null ? String(projectHeader.cstm_leaf_guard_price) : "",
+      extrasIncluded: (extras || []).length > 0,
+      extras: (extras || []).map((e) => ({
+        description: e.name || "",
+        qty: e.quantity != null ? String(e.quantity) : "",
+        unitPrice: e.unit_price != null ? String(e.unit_price) : "",
+      })),
+      discountIncluded: Boolean(projectHeader.discount_id || projectHeader.cstm_discount_percentage),
+      discountId: projectHeader.discount_id ? String(projectHeader.discount_id) : "",
+      manualDiscountRateEnabled: projectHeader.cstm_discount_percentage != null,
+      manualDiscountPercent: projectHeader.cstm_discount_percentage != null ? String(projectHeader.cstm_discount_percentage * 100) : "",
+      discountPercent: "",
+      depositIncluded: projectHeader.deposit_percent != null && Number(projectHeader.deposit_percent) > 0,
+      depositPercent: projectHeader.deposit_percent != null ? String(projectHeader.deposit_percent > 1 ? projectHeader.deposit_percent : projectHeader.deposit_percent * 100) : "",
+    };
+
+    const snapshotJson = buildGutterProjectSnapshot(projectData, quoteSetup);
+
+    // Get next version number
+    const { count } = await supabase
+      .from("gtr_t_project_snapshots")
+      .select("*", { count: "exact", head: true })
+      .eq("proj_id", projId);
+
+    const nextVersion = (count || 0) + 1;
+
+    await supabase.from("gtr_t_project_snapshots").insert({
+      proj_id: projId,
+      version_number: nextVersion,
+      snapshot_data: snapshotJson,
+      reason: snapshotReason,
+      created_by: toIntOrNull(userId),
+    });
+  } catch {
+    // Non-blocking: status update succeeded, snapshot creation is secondary
+  }
 }
 
 // ─── Delete Project ────────────────────────────────────────
@@ -357,6 +508,8 @@ export async function savePurchaseOrder(projId, purchaseOrder) {
     .eq("proj_id", id)
     .maybeSingle();
 
+  const isNewPO = !existing?.purch_order_id;
+
   if (existing?.purch_order_id) {
     const { data, error } = await supabase
       .from("gtr_m_purchorder")
@@ -374,12 +527,22 @@ export async function savePurchaseOrder(projId, purchaseOrder) {
     .select("*")
     .single();
   if (error) throw new Error(error.message);
+
+  // Create snapshot for new purchase order
+  if (isNewPO && data) {
+    try {
+      await createSnapshotForPurchaseOrder(id, userId);
+    } catch {
+      // Non-blocking: PO save succeeded, snapshot creation is secondary
+    }
+  }
+
   return data;
 }
 
 // ─── Work Order ────────────────────────────────────────────
 
-export async function saveGutterWorkOrder({ projectId, workOrder }) {
+export async function saveGutterWorkOrder({ projectId, workOrder, _userId }) {
   const id = toIntOrNull(projectId);
   if (id === null) throw new Error("projId is required");
   if (!workOrder || typeof workOrder !== "object") throw new Error("Work order data is required");
@@ -412,6 +575,7 @@ export async function saveGutterWorkOrder({ projectId, workOrder }) {
   if (existingError) throw new Error(existingError.message);
 
   let workorderId;
+  const isNewWorkOrder = !existing?.workorder_id;
 
   if (existing?.workorder_id) {
     workorderId = existing.workorder_id;
@@ -466,7 +630,202 @@ export async function saveGutterWorkOrder({ projectId, workOrder }) {
     if (error) throw new Error("Error saving work order zip screws: " + error.message);
   }
 
+  // Create snapshot for work order generation
+  try {
+    await createSnapshotForWorkOrder(id, _userId);
+  } catch {
+    // Non-blocking: work order save succeeded, snapshot creation is secondary
+  }
+
   return { workorderId };
+}
+
+async function createSnapshotForWorkOrder(projId, userId) {
+  try {
+    const supabase = getSupabaseAdmin();
+
+    // Load full project data
+    const { data: projectHeader, error: headerError } = await supabase
+      .from("gtr_t_projects")
+      .select("*")
+      .eq("proj_id", projId)
+      .maybeSingle();
+
+    if (headerError || !projectHeader) return;
+
+    const { data: sides, error: sidesError } = await supabase
+      .from("gtr_m_project_sides")
+      .select("*")
+      .eq("proj_id", projId)
+      .order("side_index");
+
+    if (sidesError) return;
+
+    const { data: extras, error: extrasError } = await supabase
+      .from("gtr_m_project_extras")
+      .select("*")
+      .eq("proj_id", projId)
+      .order("extra_id");
+
+    if (extrasError) return;
+
+    const { buildGutterProjectSnapshot } = await import("./gutter.data");
+    const quoteSetup = { materialManufacturer: [], leafGuard: [], tripRates: [], discounts: [] };
+
+    const projectData = {
+      projId: projectHeader.proj_id,
+      statusId: String(projectHeader.status_id),
+      requestLink: projectHeader.request_link || "",
+      customer: projectHeader.customer || "",
+      date: projectHeader.date || "",
+      projectName: projectHeader.project_name || "",
+      projectAddress: projectHeader.project_address || "",
+      manufacturerId: projectHeader.manufacturer_id ? String(projectHeader.manufacturer_id) : "",
+      manualManufacturerRateEnabled: projectHeader.cstm_manufacturer_rate != null,
+      manualManufacturerRate: projectHeader.cstm_manufacturer_rate != null ? String(projectHeader.cstm_manufacturer_rate) : "",
+      tripId: projectHeader.trip_id ? String(projectHeader.trip_id) : "",
+      manualTripRateEnabled: projectHeader.cstm_trip_rate != null,
+      manualTripRate: projectHeader.cstm_trip_rate != null ? String(projectHeader.cstm_trip_rate) : "",
+      sections: (sides || []).map((s) => ({
+        colorId: s.gutter_color_id ? String(s.gutter_color_id) : "",
+        downspoutColorId: s.downspout_color_id ? String(s.downspout_color_id) : "",
+        sides: s.segments != null ? String(s.segments) : "",
+        length: s.length != null ? String(s.length) : "",
+        height: s.height != null ? String(s.height) : "",
+        downspoutQty: s.downspout_qty != null ? String(s.downspout_qty) : "",
+      })),
+      leafGuardIncluded: Boolean(projectHeader.leaf_guard_id || projectHeader.cstm_leaf_guard_price),
+      leafGuardId: projectHeader.leaf_guard_id ? String(projectHeader.leaf_guard_id) : "",
+      manualLeafGuardRateEnabled: projectHeader.cstm_leaf_guard_price != null,
+      manualLeafGuardRate: projectHeader.cstm_leaf_guard_price != null ? String(projectHeader.cstm_leaf_guard_price) : "",
+      extrasIncluded: (extras || []).length > 0,
+      extras: (extras || []).map((e) => ({
+        description: e.name || "",
+        qty: e.quantity != null ? String(e.quantity) : "",
+        unitPrice: e.unit_price != null ? String(e.unit_price) : "",
+      })),
+      discountIncluded: Boolean(projectHeader.discount_id || projectHeader.cstm_discount_percentage),
+      discountId: projectHeader.discount_id ? String(projectHeader.discount_id) : "",
+      manualDiscountRateEnabled: projectHeader.cstm_discount_percentage != null,
+      manualDiscountPercent: projectHeader.cstm_discount_percentage != null ? String(projectHeader.cstm_discount_percentage * 100) : "",
+      discountPercent: "",
+      depositIncluded: projectHeader.deposit_percent != null && Number(projectHeader.deposit_percent) > 0,
+      depositPercent: projectHeader.deposit_percent != null ? String(projectHeader.deposit_percent > 1 ? projectHeader.deposit_percent : projectHeader.deposit_percent * 100) : "",
+    };
+
+    const snapshotJson = buildGutterProjectSnapshot(projectData, quoteSetup);
+
+    const { count } = await supabase
+      .from("gtr_t_project_snapshots")
+      .select("*", { count: "exact", head: true })
+      .eq("proj_id", projId);
+
+    const nextVersion = (count || 0) + 1;
+
+    await supabase.from("gtr_t_project_snapshots").insert({
+      proj_id: projId,
+      version_number: nextVersion,
+      snapshot_data: snapshotJson,
+      reason: "Work Order Generated",
+      created_by: toIntOrNull(userId),
+    });
+  } catch {
+    // Non-blocking
+  }
+}
+
+async function createSnapshotForPurchaseOrder(projId, userId) {
+  try {
+    const supabase = getSupabaseAdmin();
+
+    // Load full project data
+    const { data: projectHeader, error: headerError } = await supabase
+      .from("gtr_t_projects")
+      .select("*")
+      .eq("proj_id", projId)
+      .maybeSingle();
+
+    if (headerError || !projectHeader) return;
+
+    const { data: sides, error: sidesError } = await supabase
+      .from("gtr_m_project_sides")
+      .select("*")
+      .eq("proj_id", projId)
+      .order("side_index");
+
+    if (sidesError) return;
+
+    const { data: extras, error: extrasError } = await supabase
+      .from("gtr_m_project_extras")
+      .select("*")
+      .eq("proj_id", projId)
+      .order("extra_id");
+
+    if (extrasError) return;
+
+    const { buildGutterProjectSnapshot } = await import("./gutter.data");
+    const quoteSetup = { materialManufacturer: [], leafGuard: [], tripRates: [], discounts: [] };
+
+    const projectData = {
+      projId: projectHeader.proj_id,
+      statusId: String(projectHeader.status_id),
+      requestLink: projectHeader.request_link || "",
+      customer: projectHeader.customer || "",
+      date: projectHeader.date || "",
+      projectName: projectHeader.project_name || "",
+      projectAddress: projectHeader.project_address || "",
+      manufacturerId: projectHeader.manufacturer_id ? String(projectHeader.manufacturer_id) : "",
+      manualManufacturerRateEnabled: projectHeader.cstm_manufacturer_rate != null,
+      manualManufacturerRate: projectHeader.cstm_manufacturer_rate != null ? String(projectHeader.cstm_manufacturer_rate) : "",
+      tripId: projectHeader.trip_id ? String(projectHeader.trip_id) : "",
+      manualTripRateEnabled: projectHeader.cstm_trip_rate != null,
+      manualTripRate: projectHeader.cstm_trip_rate != null ? String(projectHeader.cstm_trip_rate) : "",
+      sections: (sides || []).map((s) => ({
+        colorId: s.gutter_color_id ? String(s.gutter_color_id) : "",
+        downspoutColorId: s.downspout_color_id ? String(s.downspout_color_id) : "",
+        sides: s.segments != null ? String(s.segments) : "",
+        length: s.length != null ? String(s.length) : "",
+        height: s.height != null ? String(s.height) : "",
+        downspoutQty: s.downspout_qty != null ? String(s.downspout_qty) : "",
+      })),
+      leafGuardIncluded: Boolean(projectHeader.leaf_guard_id || projectHeader.cstm_leaf_guard_price),
+      leafGuardId: projectHeader.leaf_guard_id ? String(projectHeader.leaf_guard_id) : "",
+      manualLeafGuardRateEnabled: projectHeader.cstm_leaf_guard_price != null,
+      manualLeafGuardRate: projectHeader.cstm_leaf_guard_price != null ? String(projectHeader.cstm_leaf_guard_price) : "",
+      extrasIncluded: (extras || []).length > 0,
+      extras: (extras || []).map((e) => ({
+        description: e.name || "",
+        qty: e.quantity != null ? String(e.quantity) : "",
+        unitPrice: e.unit_price != null ? String(e.unit_price) : "",
+      })),
+      discountIncluded: Boolean(projectHeader.discount_id || projectHeader.cstm_discount_percentage),
+      discountId: projectHeader.discount_id ? String(projectHeader.discount_id) : "",
+      manualDiscountRateEnabled: projectHeader.cstm_discount_percentage != null,
+      manualDiscountPercent: projectHeader.cstm_discount_percentage != null ? String(projectHeader.cstm_discount_percentage * 100) : "",
+      discountPercent: "",
+      depositIncluded: projectHeader.deposit_percent != null && Number(projectHeader.deposit_percent) > 0,
+      depositPercent: projectHeader.deposit_percent != null ? String(projectHeader.deposit_percent > 1 ? projectHeader.deposit_percent : projectHeader.deposit_percent * 100) : "",
+    };
+
+    const snapshotJson = buildGutterProjectSnapshot(projectData, quoteSetup);
+
+    const { count } = await supabase
+      .from("gtr_t_project_snapshots")
+      .select("*", { count: "exact", head: true })
+      .eq("proj_id", projId);
+
+    const nextVersion = (count || 0) + 1;
+
+    await supabase.from("gtr_t_project_snapshots").insert({
+      proj_id: projId,
+      version_number: nextVersion,
+      snapshot_data: snapshotJson,
+      reason: "Purchase Order Generated",
+      created_by: toIntOrNull(userId),
+    });
+  } catch {
+    // Non-blocking
+  }
 }
 
 // ─── Setup Table CRUD ──────────────────────────────────────
@@ -521,6 +880,112 @@ export async function deleteSetupRow(tableKey, id) {
 
   const supabase = getSupabaseAdmin();
   const { error } = await supabase.from(table).delete().eq(pk, rowId);
+  if (error) throw new Error(error.message);
+  return { success: true };
+}
+
+// ─── Project Snapshots ──────────────────────────────────────
+
+export async function loadProjectSnapshots(projId) {
+  const id = toIntOrNull(projId);
+  if (id === null) throw new Error("projId is required");
+
+  const supabase = getSupabaseAdmin();
+
+  const { data, error } = await supabase
+    .from("gtr_t_project_snapshots")
+    .select("snapshot_id, version_number, reason, created_at, created_by")
+    .eq("proj_id", id)
+    .order("version_number", { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  const userIds = Array.from(
+    new Set((data || []).map((s) => toIntOrNull(s.created_by)).filter((v) => v !== null))
+  );
+
+  let userById = new Map();
+  if (userIds.length > 0) {
+    const { data: users } = await supabase
+      .from("psb_s_user")
+      .select("*")
+      .in("user_id", userIds);
+    userById = (users || []).reduce((m, u) => {
+      m.set(String(u.user_id), u);
+      return m;
+    }, new Map());
+  }
+
+  return (data || []).map((s) => {
+    const user = userById.get(String(toIntOrNull(s.created_by)));
+    return {
+      ...s,
+      created_by_name: toUserDisplayName(user) || (s.created_by ? `User #${s.created_by}` : "System"),
+    };
+  });
+}
+
+export async function loadProjectSnapshot(projId, versionNumber) {
+  const id = toIntOrNull(projId);
+  const version = toIntOrNull(versionNumber);
+  if (id === null || version === null) throw new Error("projId and versionNumber are required");
+
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("gtr_t_project_snapshots")
+    .select("*")
+    .eq("proj_id", id)
+    .eq("version_number", version)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data || null;
+}
+
+export async function createProjectSnapshot(projId, reason, snapshotData, userId = null) {
+  const id = toIntOrNull(projId);
+  if (id === null) throw new Error("projId is required");
+  if (!hasValue(reason)) throw new Error("Reason is required");
+  if (!snapshotData || typeof snapshotData !== "object") throw new Error("Snapshot data is required");
+
+  const supabase = getSupabaseAdmin();
+
+  // Get current version count
+  const { count, error: countError } = await supabase
+    .from("gtr_t_project_snapshots")
+    .select("*", { count: "exact", head: true })
+    .eq("proj_id", id);
+
+  if (countError) throw new Error(countError.message);
+
+  const nextVersion = (count || 0) + 1;
+
+  const { data, error } = await supabase
+    .from("gtr_t_project_snapshots")
+    .insert({
+      proj_id: id,
+      version_number: nextVersion,
+      snapshot_data: snapshotData,
+      reason: String(reason).trim(),
+      created_by: toIntOrNull(userId),
+    })
+    .select("*")
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function deleteProjectSnapshot(snapshotId) {
+  const id = toIntOrNull(snapshotId);
+  if (id === null) throw new Error("snapshotId is required");
+
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .from("gtr_t_project_snapshots")
+    .delete()
+    .eq("snapshot_id", id);
+
   if (error) throw new Error(error.message);
   return { success: true };
 }

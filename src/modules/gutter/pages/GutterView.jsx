@@ -7,6 +7,7 @@ import { Button, Modal, TableZ, toastError, toastSuccess } from "@/shared/compon
 import { createFilterConfig, TABLE_FILTER_TYPES } from "@/shared/components/ui/table/filterSchema";
 import { updateGutterProjectStatus, deleteGutterProject } from "../data/gutter.actions";
 import { formatCurrency, toPercentLabel, statusToneClass } from "../data/gutter.data";
+import { getPSBUserPayloadFromCookie } from "@/core/sso-client";
 
 const resolveRelated = (value) => {
   if (Array.isArray(value)) return value[0] || null;
@@ -167,7 +168,9 @@ export default function GutterView({ projects = [], statuses = [] }) {
     if (!statusModal) return;
     setBusy(true);
     try {
-      await updateGutterProjectStatus(statusModal.projId, statusModal.statusId);
+      const session = getPSBUserPayloadFromCookie();
+      const userId = session?.userId || null;
+      await updateGutterProjectStatus(statusModal.projId, statusModal.statusId, userId);
       toastSuccess("Status updated.", "Gutter");
       setStatusModal(null);
       router.refresh();
