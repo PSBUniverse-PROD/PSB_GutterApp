@@ -97,6 +97,29 @@
   margin-bottom: 0.5rem;
 }
 
+.docHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.docHeaderLogo {
+  flex-shrink: 0;
+}
+
+.docHeaderLogo img,
+.docLogoImg {
+  display: block;
+  max-height: 50px;
+  width: auto;
+  object-fit: contain;
+}
+
+.docHeaderInfo {
+  display: flex;
+  flex-direction: column;
+}
+
 .docCompanyName {
   font-size: 1.15rem;
   font-weight: 700;

@@ -1,4 +1,4 @@
-import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import { formatCurrency } from "../data/gutter.data";
 
 /* --- Helpers ---------------------------------------------------------------- */
@@ -46,17 +46,24 @@ const s = StyleSheet.create({
   // Notes box
   notesBox: { height: 80, borderWidth: 1, borderColor: "#ccc", borderStyle: "dashed", marginTop: 6 },
   note: { fontSize: 9, marginTop: 4 },
+  // Logo
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  logo: { width: 50, height: 50, objectFit: "contain" },
+  headerInfo: { flexDirection: "column" },
 });
 
 /* --- Reusable sub-components ------------------------------------------------ */
-function DocHeader({ leftTitle, leftSubtitle, leftSub2, rightMeta }) {
+function DocHeader({ leftTitle, leftSubtitle, leftSub2, rightMeta, logoUrl }) {
   return (
     <>
       <View style={s.header}>
-        <View>
-          <Text style={s.companyName}>{leftTitle}</Text>
-          {leftSubtitle ? <Text style={s.companyDetail}>{leftSubtitle}</Text> : null}
-          {leftSub2 ? <Text style={s.companyDetail}>{leftSub2}</Text> : null}
+        <View style={s.headerLeft}>
+          {logoUrl ? <Image style={s.logo} src={logoUrl} /> : null}
+          <View style={s.headerInfo}>
+            <Text style={s.companyName}>{leftTitle}</Text>
+            {leftSubtitle ? <Text style={s.companyDetail}>{leftSubtitle}</Text> : null}
+            {leftSub2 ? <Text style={s.companyDetail}>{leftSub2}</Text> : null}
+          </View>
         </View>
         <View style={s.headerRight}>
           {rightMeta.map((m, i) => (
@@ -89,7 +96,7 @@ function TableRow({ cells, widths, header = false, style }) {
 /* ==========================================================================
    QUOTE PDF DOCUMENT
    ========================================================================== */
-export function QuotePdf({ header, quoteResult, companyProfile, displayDate, selectedManufacturerName, selectedLeafGuardName, sectionBreakdownRows, extras }) {
+export function QuotePdf({ header, quoteResult, companyProfile, displayDate, selectedManufacturerName, selectedLeafGuardName, sectionBreakdownRows, extras, logoUrl }) {
   const pricing = quoteResult?.pricing;
   if (!pricing) return (<Document><Page size="LETTER" style={s.page}><Text>No pricing data.</Text></Page></Document>);
 
@@ -116,6 +123,7 @@ export function QuotePdf({ header, quoteResult, companyProfile, displayDate, sel
             { label: "Date", value: displayDate },
             { label: "Project #", value: String(header.proj_id) },
           ]}
+          logoUrl={logoUrl}
         />
 
         {/* Project Details */}
@@ -232,7 +240,7 @@ export function QuotePdf({ header, quoteResult, companyProfile, displayDate, sel
 /* ==========================================================================
    WORK ORDER PDF DOCUMENT
    ========================================================================== */
-export function WorkOrderPdf({ header, sides, materials, companyProfile, zipScrewsBags, workOrderData }) {
+export function WorkOrderPdf({ header, sides, materials, companyProfile, zipScrewsBags, workOrderData, logoUrl }) {
   const matW = ["45%", "20%", "35%"];
   const measW = ["10%", "22%", "22%", "22%", "24%"];
   const wo = workOrderData || {};
@@ -256,10 +264,13 @@ export function WorkOrderPdf({ header, sides, materials, companyProfile, zipScre
       <Page size="LETTER" style={s.page}>
         {/* Row 1: Header */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
-          <View>
-            <Text style={s.companyName}>{companyProfile.name || "Company"}</Text>
-            <Text style={s.companyDetail}>{companyProfile.email}</Text>
-            <Text style={s.companyDetail}>{companyProfile.phone}</Text>
+          <View style={s.headerLeft}>
+            {logoUrl ? <Image style={s.logo} src={logoUrl} /> : null}
+            <View style={s.headerInfo}>
+              <Text style={s.companyName}>{companyProfile.name || "Company"}</Text>
+              <Text style={s.companyDetail}>{companyProfile.email}</Text>
+              <Text style={s.companyDetail}>{companyProfile.phone}</Text>
+            </View>
           </View>
           <View style={{ alignItems: "flex-end" }}>
             <Text style={[s.detailItem, { marginBottom: 1 }]}>
@@ -381,7 +392,7 @@ export function WorkOrderPdf({ header, sides, materials, companyProfile, zipScre
 /* ==========================================================================
    PURCHASE ORDER PDF DOCUMENT
    ========================================================================== */
-export function PurchaseOrderPdf({ header, materials, storedPurchaseOrder }) {
+export function PurchaseOrderPdf({ header, materials, storedPurchaseOrder, logoUrl }) {
   const po = storedPurchaseOrder || {};
   const getValue = (poField, matPath) => {
     if (po[poField] !== undefined && po[poField] !== null) return po[poField];
@@ -400,6 +411,7 @@ export function PurchaseOrderPdf({ header, materials, storedPurchaseOrder }) {
             { label: "PO#", value: String(header.proj_id) },
             { label: "Date", value: toDisplay(header.date) },
           ]}
+          logoUrl={logoUrl}
         />
 
         {/* Project Info */}

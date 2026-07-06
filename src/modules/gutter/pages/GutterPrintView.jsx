@@ -2,12 +2,14 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faPrint, faDownload } from "@fortawesome/free-solid-svg-icons";
 import { faFileLines, faNoteSticky, faRectangleList } from "@fortawesome/free-regular-svg-icons";
 import { Button } from "@/shared/components/ui";
 import { pdf } from "@react-pdf/renderer";
 import { QuotePdf, WorkOrderPdf, PurchaseOrderPdf } from "./GutterPdfDocuments";
+import logoImg from "../assets/PSGD Logo.png";
 import {
   calculateQuote, calculateMaterials, formatCurrency,
   normalizeStatuses, normalizeColors, normalizeManufacturers,
@@ -144,6 +146,7 @@ export default function GutterPrintView({ projectId, projectData, setup, storedP
     setGenerating(true);
     try {
       let doc;
+      const logoUrl = typeof logoImg === "object" && logoImg?.src ? logoImg.src : logoImg;
       if (activeTab === "quote") {
         doc = (
           <QuotePdf
@@ -155,6 +158,7 @@ export default function GutterPrintView({ projectId, projectData, setup, storedP
             selectedLeafGuardName={selectedLeafGuardName}
             sectionBreakdownRows={sectionBreakdownRows}
             extras={extras}
+            logoUrl={logoUrl}
           />
         );
       } else if (activeTab === "work-order") {
@@ -165,6 +169,7 @@ export default function GutterPrintView({ projectId, projectData, setup, storedP
             materials={materials}
             companyProfile={companyProfile}
             workOrderData={workOrderData}
+            logoUrl={logoUrl}
           />
         );
       } else {
@@ -173,6 +178,7 @@ export default function GutterPrintView({ projectId, projectData, setup, storedP
             header={header}
             materials={materials}
             storedPurchaseOrder={storedPurchaseOrder}
+            logoUrl={logoUrl}
           />
         );
       }
@@ -281,10 +287,15 @@ function QuoteDocument({ header, project, quoteResult, companyProfile, displayDa
     <div className={styles.printDocument}>
       {/* Header */}
       <div className={styles.docHeader}>
-        <div>
-          <h2 className={styles.docCompanyName}>{companyProfile.name || "Company"}</h2>
-          <div className={styles.docCompanyDetail}>{companyProfile.email}</div>
-          <div className={styles.docCompanyDetail}>{companyProfile.phone}</div>
+        <div className={styles.docHeaderLeft}>
+          <div className={styles.docHeaderLogo}>
+            <Image src={logoImg} alt="Company Logo" className={styles.docLogoImg} />
+          </div>
+          <div className={styles.docHeaderInfo}>
+            <h2 className={styles.docCompanyName}>{companyProfile.name || "Company"}</h2>
+            <div className={styles.docCompanyDetail}>{companyProfile.email}</div>
+            <div className={styles.docCompanyDetail}>{companyProfile.phone}</div>
+          </div>
         </div>
         <div className={styles.docHeaderRight}>
           <div className={styles.docHeaderMeta}><span>Date</span><strong>{displayDate}</strong></div>
@@ -488,10 +499,15 @@ function WorkOrderDocument({ header, sides, materials, companyProfile, workOrder
     <div className={styles.printDocument}>
       {/* Header */}
       <div className={styles.docHeader}>
-        <div>
-          <h2 className={styles.docCompanyName}>{companyProfile.name || "Company"}</h2>
-          <div className={styles.docCompanyDetail}>{companyProfile.email}</div>
-          <div className={styles.docCompanyDetail}>{companyProfile.phone}</div>
+        <div className={styles.docHeaderLeft}>
+          <div className={styles.docHeaderLogo}>
+            <Image src={logoImg} alt="Company Logo" className={styles.docLogoImg} />
+          </div>
+          <div className={styles.docHeaderInfo}>
+            <h2 className={styles.docCompanyName}>{companyProfile.name || "Company"}</h2>
+            <div className={styles.docCompanyDetail}>{companyProfile.email}</div>
+            <div className={styles.docCompanyDetail}>{companyProfile.phone}</div>
+          </div>
         </div>
         <div className={styles.docHeaderRight}>
           <div className={styles.docHeaderMeta}><span>PO#</span><strong>{wo.work_order_no ? String(wo.work_order_no) : String(header.proj_id)}</strong></div>
@@ -651,9 +667,14 @@ function PurchaseOrderDocument({ header, materials, storedPurchaseOrder }) {
     <div className={styles.printDocument}>
       {/* Header */}
       <div className={styles.docHeader}>
-        <div>
-          <h2 className={styles.docCompanyName}>Purchase Order</h2>
-          <div className={styles.docCompanyDetail}>{toDisplay(header.project_name)}</div>
+        <div className={styles.docHeaderLeft}>
+          <div className={styles.docHeaderLogo}>
+            <Image src={logoImg} alt="Company Logo" className={styles.docLogoImg} />
+          </div>
+          <div className={styles.docHeaderInfo}>
+            <h2 className={styles.docCompanyName}>Purchase Order</h2>
+            <div className={styles.docCompanyDetail}>{toDisplay(header.project_name)}</div>
+          </div>
         </div>
         <div className={styles.docHeaderRight}>
           <div className={styles.docHeaderMeta}><span>PO#</span><strong>{header.proj_id}</strong></div>
