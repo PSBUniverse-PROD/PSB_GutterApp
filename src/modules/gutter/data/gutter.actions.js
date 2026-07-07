@@ -498,6 +498,9 @@ export async function savePurchaseOrder(projId, purchaseOrder) {
 
   // Extract userId from purchase order payload (set by client via SSO cookie)
   const userId = toIntOrNull(po._userId);
+  if (userId === null) {
+    throw new Error("User session is required to save purchase order. Please log in again.");
+  }
 
   const supabase = getSupabaseAdmin();
   const now = new Date().toISOString();

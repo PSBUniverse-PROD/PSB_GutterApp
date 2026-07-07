@@ -387,7 +387,7 @@ export function PurchaseOrderPdf({ header, materials, storedPurchaseOrder, compa
     return matPath;
   };
 
-  const matW = ["50%", "20%", "30%"];
+  const matW = ["35%", "15%", "15%", "35%"];
 
   return (
     <Document>
@@ -422,20 +422,20 @@ export function PurchaseOrderPdf({ header, materials, storedPurchaseOrder, compa
         {/* Material Order */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>Material Order</Text>
-          <TableRow header cells={["Item", { text: "QTY", align: "right" }, "Unit"]} widths={matW} />
+          <TableRow header cells={["Item", { text: "QTY", align: "right" }, "Unit", "Color"]} widths={matW} />
           {[
-            ['Gutter Coil 15"', fmtNum(getValue("gutter_coil_total_ft", materials?.gutterCoil?.totalFt)), `FT (${fmtNum(getValue("gutter_coil_total_lbs", materials?.gutterCoil?.totalLbs))} lbs)`],
-            ['Right End Caps - 6" K-Style', fmtInt(getValue("right_end_caps_qty", materials?.endCaps?.right?.qty)), "EA"],
-            ['Left End Caps - 6" K-Style', fmtInt(getValue("left_end_caps_qty", materials?.endCaps?.left?.qty)), "EA"],
-            ['3" x 4" Downpipe 10\'ft', fmtInt(getValue("downpipe_qty", materials?.downpipe?.qty)), "EA"],
-            ['3" x 4" - 6" One Piece Offset', fmtInt(getValue("one_piece_offset_qty", materials?.onePieceOffset?.qty)), "EA"],
-            ['3" x 4" -(A) Elbow', fmtInt(getValue("elbow_a_qty", materials?.elbow?.qty)), "EA"],
-            ["Spray Paint", fmtInt(getValue("spray_paint_qty", materials?.sprayPaint?.qty)), "CAN"],
-            ['#8 x 1/2" Zip Screws', fmtInt(getValue("zip_screws_qty", materials?.zipScrews?.qty)), "EA"],
-            ['6" Hidden Hangers', fmtInt(getValue("hidden_hangers_qty", materials?.internal?.hiddenHangers)), "EA"],
-            ['#10 x 1-1/2" Box Screws', fmtInt(getValue("box_screws_qty", materials?.internal?.boxScrews)), "EA"],
-          ].map(([item, qty, unit]) => (
-            <TableRow key={item} cells={[item, { text: qty, align: "right" }, unit]} widths={matW} />
+            ['Gutter Coil 15"', fmtNum(getValue("gutter_coil_total_ft", materials?.gutterCoil?.totalFt)), `FT (${fmtNum(getValue("gutter_coil_total_lbs", materials?.gutterCoil?.totalLbs))} lbs)`, materials?.gutterCoil?.color || "—"],
+            ['Right End Caps - 6" K-Style', fmtInt(getValue("right_end_caps_qty", materials?.endCaps?.right?.qty)), "EA", materials?.endCaps?.right?.color || "—"],
+            ['Left End Caps - 6" K-Style', fmtInt(getValue("left_end_caps_qty", materials?.endCaps?.left?.qty)), "EA", materials?.endCaps?.left?.color || "—"],
+            ['3" x 4" Downpipe 10\'ft', fmtInt(getValue("downpipe_qty", materials?.downpipe?.qty)), "EA", materials?.downpipe?.color || "—"],
+            ['3" x 4" - 6" One Piece Offset', fmtInt(getValue("one_piece_offset_qty", materials?.onePieceOffset?.qty)), "EA", materials?.onePieceOffset?.color || "—"],
+            ['3" x 4" -(A) Elbow', fmtInt(getValue("elbow_a_qty", materials?.elbow?.qty)), "EA", materials?.elbow?.color || "—"],
+            ["Spray Paint", fmtInt(getValue("spray_paint_qty", materials?.sprayPaint?.qty)), "CAN", materials?.sprayPaint?.color || "—"],
+            ['#8 x 1/2" Zip Screws', fmtInt(getValue("zip_screws_qty", materials?.zipScrews?.qty)), "EA", materials?.zipScrews?.color || "—"],
+            ['6" Hidden Hangers', fmtInt(getValue("hidden_hangers_qty", materials?.internal?.hiddenHangers)), "EA", "Auto"],
+            ['#10 x 1-1/2" Box Screws', fmtInt(getValue("box_screws_qty", materials?.internal?.boxScrews)), "EA", "—"],
+          ].map(([item, qty, unit, color]) => (
+            <TableRow key={item} cells={[item, { text: qty, align: "right" }, unit, color || "—"]} widths={matW} />
           ))}
         </View>
 
