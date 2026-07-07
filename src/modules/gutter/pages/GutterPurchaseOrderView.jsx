@@ -51,11 +51,12 @@ export default function GutterPurchaseOrderView({ projectId, projectData, stored
   const colors = useMemo(() => projectData?.colors || [], [projectData?.colors]);
 
   const companyProfile = useMemo(() => {
-    const c = Array.isArray(setup?.company) ? setup.company[0] : setup?.company || {};
+    const companies = Array.isArray(setup?.company) ? setup.company : [];
+    const pgd = companies.find((c) => c.short_name === "PGD") || companies[0] || {};
     return {
-      name: c.short_name || c.comp_name || "Purchase Order",
-      email: c.comp_email || "",
-      phone: c.comp_phone || "",
+      name: pgd.short_name || pgd.comp_name || "Purchase Order",
+      email: pgd.comp_email || "",
+      phone: pgd.comp_phone || "",
     };
   }, [setup]);
   const logoUrl = useMemo(() => (typeof logoImg === "object" && logoImg?.src ? logoImg.src : logoImg), []);

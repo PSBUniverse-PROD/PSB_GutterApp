@@ -49,7 +49,7 @@ export async function loadGutterSetup() {
     leafGuards:    supabase.from("gtr_s_leaf_guards").select("*").order("leaf_guard_id"),
     tripRates:     supabase.from("gtr_s_trip_rates").select("*").order("trip_id"),
     discounts:     supabase.from("gtr_s_discounts").select("*").order("discount_id"),
-    company:       supabase.from("psb_s_company").select("comp_id,comp_name,short_name,comp_email,comp_phone").order("comp_id").limit(1),
+    company:       supabase.from("psb_s_company").select("comp_id,comp_name,short_name,comp_email,comp_phone").order("comp_id"),
   };
 
   const keys = Object.keys(queries);

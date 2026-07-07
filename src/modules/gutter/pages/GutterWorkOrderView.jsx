@@ -172,11 +172,12 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
     });
   };
   const companyProfile = useMemo(() => {
-    const c = Array.isArray(setup?.company) ? setup.company[0] : setup?.company || {};
+    const companies = Array.isArray(setup?.company) ? setup.company : [];
+    const pgd = companies.find((c) => c.short_name === "PGD") || companies[0] || {};
     return {
-      name: c.short_name || c.comp_name || "Company",
-      email: c.comp_email || "",
-      phone: c.comp_phone || "",
+      name: pgd.short_name || pgd.comp_name || "Company",
+      email: pgd.comp_email || "",
+      phone: pgd.comp_phone || "",
     };
   }, [setup]);
   const logoUrl = useMemo(() => (typeof logoImg === "object" && logoImg?.src ? logoImg.src : logoImg), []);

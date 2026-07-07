@@ -46,8 +46,9 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
   const tripFeeRates = useMemo(() => normalizeTripRates(setup.tripRates), [setup.tripRates]);
   const discounts = useMemo(() => normalizeDiscounts(setup.discounts), [setup.discounts]);
   const companyProfile = useMemo(() => {
-    const c = Array.isArray(setup.company) ? setup.company[0] : setup.company;
-    return c ? { name: c.short_name || c.comp_name || "—", email: c.comp_email || "—", phone: c.comp_phone || "—" } : { name: "—", email: "—", phone: "—" };
+    const companies = Array.isArray(setup.company) ? setup.company : [];
+    const pgd = companies.find((c) => c.short_name === "PGD") || companies[0] || {};
+    return { name: pgd.short_name || pgd.comp_name || "—", email: pgd.comp_email || "—", phone: pgd.comp_phone || "—" };
   }, [setup.company]);
 
   // Setup for quote calc
