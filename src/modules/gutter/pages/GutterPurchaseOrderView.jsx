@@ -54,7 +54,7 @@ export default function GutterPurchaseOrderView({ projectId, projectData, stored
     const companies = Array.isArray(setup?.company) ? setup.company : [];
     const pgd = companies.find((c) => c.short_name === "PGD") || companies[0] || {};
     return {
-      name: pgd.short_name || pgd.comp_name || "Purchase Order",
+      name: pgd.comp_name || pgd.short_name || "Purchase Order",
       email: pgd.comp_email || "",
       phone: pgd.comp_phone || "",
     };
@@ -122,6 +122,7 @@ export default function GutterPurchaseOrderView({ projectId, projectData, stored
           header={header}
           materials={materials}
           storedPurchaseOrder={storedPurchaseOrder}
+          companyProfile={companyProfile}
           logoUrl={logoUrl}
         />
       );

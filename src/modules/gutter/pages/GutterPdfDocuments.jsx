@@ -262,28 +262,16 @@ export function WorkOrderPdf({ header, sides, materials, companyProfile, zipScre
   return (
     <Document>
       <Page size="LETTER" style={s.page}>
-        {/* Row 1: Header */}
-        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
-          <View style={s.headerLeft}>
-            {logoUrl ? <Image style={s.logo} src={logoUrl} /> : null}
-            <View style={s.headerInfo}>
-              <Text style={s.companyName}>{companyProfile.name || "Company"}</Text>
-              <Text style={s.companyDetail}>{companyProfile.email}</Text>
-              <Text style={s.companyDetail}>{companyProfile.phone}</Text>
-            </View>
-          </View>
-          <View style={{ alignItems: "flex-end" }}>
-            <Text style={[s.detailItem, { marginBottom: 1 }]}>
-              <Text style={s.detailLabel}>PO# </Text>
-              <Text style={[s.detailValue, { fontFamily: "Helvetica-Bold" }]}>{workOrderData?.workOrderNo ? String(workOrderData.workOrderNo) : "—"}</Text>
-            </Text>
-            <Text style={s.detailItem}>
-              <Text style={s.detailLabel}>Date </Text>
-              <Text style={[s.detailValue, { fontFamily: "Helvetica-Bold" }]}>{toDisplay(workOrderData?.workOrderDate)}</Text>
-            </Text>
-          </View>
-        </View>
-        <View style={s.divider} />
+        <DocHeader
+          leftTitle={companyProfile.name || "Company"}
+          leftSubtitle={companyProfile.email}
+          leftSub2={companyProfile.phone}
+          rightMeta={[
+            { label: "PO#", value: workOrderData?.workOrderNo ? String(workOrderData.workOrderNo) : "—" },
+            { label: "Date", value: toDisplay(workOrderData?.workOrderDate) },
+          ]}
+          logoUrl={logoUrl}
+        />
 
         {/* Row 2: Work Order (left) + Installer (right) */}
         <View style={{ flexDirection: "row", gap: 24, marginBottom: 6 }}>
@@ -392,7 +380,7 @@ export function WorkOrderPdf({ header, sides, materials, companyProfile, zipScre
 /* ==========================================================================
    PURCHASE ORDER PDF DOCUMENT
    ========================================================================== */
-export function PurchaseOrderPdf({ header, materials, storedPurchaseOrder, logoUrl }) {
+export function PurchaseOrderPdf({ header, materials, storedPurchaseOrder, companyProfile, logoUrl }) {
   const po = storedPurchaseOrder || {};
   const getValue = (poField, matPath) => {
     if (po[poField] !== undefined && po[poField] !== null) return po[poField];
@@ -405,8 +393,9 @@ export function PurchaseOrderPdf({ header, materials, storedPurchaseOrder, logoU
     <Document>
       <Page size="LETTER" style={s.page}>
         <DocHeader
-          leftTitle="Purchase Order"
-          leftSubtitle={toDisplay(header.project_name)}
+          leftTitle={companyProfile.name || "Purchase Order"}
+          leftSubtitle={companyProfile.email}
+          leftSub2={companyProfile.phone}
           rightMeta={[
             { label: "PO#", value: String(header.proj_id) },
             { label: "Date", value: toDisplay(header.date) },

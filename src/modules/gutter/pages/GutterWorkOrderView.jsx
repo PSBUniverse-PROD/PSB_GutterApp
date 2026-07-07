@@ -175,7 +175,7 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
     const companies = Array.isArray(setup?.company) ? setup.company : [];
     const pgd = companies.find((c) => c.short_name === "PGD") || companies[0] || {};
     return {
-      name: pgd.short_name || pgd.comp_name || "Company",
+      name: pgd.comp_name || pgd.short_name || "Company",
       email: pgd.comp_email || "",
       phone: pgd.comp_phone || "",
     };

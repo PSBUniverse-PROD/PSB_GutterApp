@@ -13,7 +13,6 @@ import { pdf } from "@react-pdf/renderer";
 import { QuotePdf } from "./GutterPdfDocuments";
 import { saveGutterProject } from "../data/gutter.actions";
 import logoImg from "../assets/PSGD Logo.png";
-import GutterSnapshotHistory from "../components/GutterSnapshotHistory";
 import styles from "./GutterProject.module.css";
 import {
   hasValue, asNumber, calculateQuote, formatCurrency, formatPercentLabel, toDisplayPercentValue,
@@ -48,7 +47,7 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
   const companyProfile = useMemo(() => {
     const companies = Array.isArray(setup.company) ? setup.company : [];
     const pgd = companies.find((c) => c.short_name === "PGD") || companies[0] || {};
-    return { name: pgd.short_name || pgd.comp_name || "—", email: pgd.comp_email || "—", phone: pgd.comp_phone || "—" };
+    return { name: pgd.comp_name || pgd.short_name || "—", email: pgd.comp_email || "—", phone: pgd.comp_phone || "—" };
   }, [setup.company]);
 
   // Setup for quote calc
@@ -442,9 +441,6 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
             <Button variant="secondary" onClick={handlePrint} disabled={printing} loading={printing}>
               <FontAwesomeIcon icon={faPrint} className="me-1" /> Print / PDF
             </Button>
-          )}
-          {isEdit && (
-            <GutterSnapshotHistory projectId={projectId} currentVersion={snapshotCount} />
           )}
         </div>
       </div>
