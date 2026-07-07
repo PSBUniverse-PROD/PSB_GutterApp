@@ -7,9 +7,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faCheck, faPrint, faBoxOpen, faUpRightFromSquare, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 import { faBuilding } from "@fortawesome/free-regular-svg-icons";
 import { Button, toastError, toastSuccess } from "@/shared/components/ui";
+import Image from "next/image";
 import { pdf } from "@react-pdf/renderer";
 import { PurchaseOrderPdf } from "./GutterPdfDocuments";
 import { savePurchaseOrder } from "../data/gutter.actions";
+import logoImg from "../assets/PSGD Logo.png";
 import { calculateMaterials } from "../data/gutter.data";
 import { getPSBUserPayloadFromCookie } from "@/core/sso-client";
 import styles from "./GutterWorkOrder.module.css";
@@ -42,11 +44,21 @@ const toDecimalDisplay = (value, digits = 2) => {
   return parsed.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: digits });
 };
 
-export default function GutterPurchaseOrderView({ projectId, projectData, storedPurchaseOrder }) {
+export default function GutterPurchaseOrderView({ projectId, projectData, storedPurchaseOrder, setup }) {
   const header = projectData?.projectHeader || null;
 
   const sides = useMemo(() => projectData?.projectSides || [], [projectData?.projectSides]);
   const colors = useMemo(() => projectData?.colors || [], [projectData?.colors]);
+
+  const companyProfile = useMemo(() => {
+    const c = Array.isArray(setup?.company) ? setup.company[0] : setup?.company || {};
+    return {
+      name: c.short_name || c.comp_name || "Purchase Order",
+      email: c.comp_email || "",
+      phone: c.comp_phone || "",
+    };
+  }, [setup]);
+  const logoUrl = useMemo(() => (typeof logoImg === "object" && logoImg?.src ? logoImg.src : logoImg), []);
 
   const [manualInputs, setManualInputs] = useState(() => {
     const stored = storedPurchaseOrder;
@@ -109,6 +121,7 @@ export default function GutterPurchaseOrderView({ projectId, projectData, stored
           header={header}
           materials={materials}
           storedPurchaseOrder={storedPurchaseOrder}
+          logoUrl={logoUrl}
         />
       );
       const blob = await pdf(doc).toBlob();
@@ -121,7 +134,7 @@ export default function GutterPurchaseOrderView({ projectId, projectData, stored
     } finally {
       setPrinting(false);
     }
-  }, [canPrint, printing, header, materials, storedPurchaseOrder]);
+  }, [canPrint, printing, header, materials, storedPurchaseOrder, logoUrl]);
 
   const handleSave = useCallback(async () => {
     if (!projectId || !materials) return;

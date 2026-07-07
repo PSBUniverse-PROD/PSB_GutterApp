@@ -1,4 +1,4 @@
-import { loadGutterProject, loadGutterWorkOrder } from "../data/gutter.server";
+import { loadGutterSetup, loadGutterProject, loadGutterWorkOrder } from "../data/gutter.server";
 import { getSupabaseAdmin } from "@/core/supabase/admin";
 import GutterWorkOrderView from "./GutterWorkOrderView";
 
@@ -8,8 +8,11 @@ export default async function GutterWorkOrderPage({ params }) {
   const resolvedParams = await params;
   const projectId = resolvedParams?.id || null;
 
-  const projectData = await loadGutterProject(projectId);
-  const workOrderData = await loadGutterWorkOrder(projectId);
+  const [projectData, workOrderData, setup] = await Promise.all([
+    loadGutterProject(projectId),
+    loadGutterWorkOrder(projectId),
+    loadGutterSetup(),
+  ]);
 
   // Resolve manufacturer name from header
   let manufacturerName = null;
@@ -26,6 +29,7 @@ export default async function GutterWorkOrderPage({ params }) {
       projectData={projectData}
       manufacturerName={manufacturerName}
       workOrderData={workOrderData}
+      setup={setup}
     />
   );
 }

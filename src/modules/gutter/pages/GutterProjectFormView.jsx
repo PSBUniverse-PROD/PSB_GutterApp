@@ -8,9 +8,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faCheck, faPrint, faGear, faLayerGroup, faCirclePlus } from "@fortawesome/free-solid-svg-icons";
 import { faFolderOpen, faTrashCan, faFileLines } from "@fortawesome/free-regular-svg-icons";
 import { Button, Card, toastError, toastSuccess, toastWarning } from "@/shared/components/ui";
+import Image from "next/image";
 import { pdf } from "@react-pdf/renderer";
 import { QuotePdf } from "./GutterPdfDocuments";
 import { saveGutterProject } from "../data/gutter.actions";
+import logoImg from "../assets/PSGD Logo.png";
 import GutterSnapshotHistory from "../components/GutterSnapshotHistory";
 import styles from "./GutterProject.module.css";
 import {
@@ -45,7 +47,7 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
   const discounts = useMemo(() => normalizeDiscounts(setup.discounts), [setup.discounts]);
   const companyProfile = useMemo(() => {
     const c = Array.isArray(setup.company) ? setup.company[0] : setup.company;
-    return c ? { name: c.comp_name || c.short_name || "—", email: c.comp_email || "—", phone: c.comp_phone || "—" } : { name: "—", email: "—", phone: "—" };
+    return c ? { name: c.short_name || c.comp_name || "—", email: c.comp_email || "—", phone: c.comp_phone || "—" } : { name: "—", email: "—", phone: "—" };
   }, [setup.company]);
 
   // Setup for quote calc
@@ -349,6 +351,7 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
 
   // ─── Direct Print ─────────────────────────────────────
   const [printing, setPrinting] = useState(false);
+  const logoUrl = useMemo(() => (typeof logoImg === "object" && logoImg?.src ? logoImg.src : logoImg), []);
 
   const handlePrint = useCallback(async () => {
     if (!quoteResult || printing) return;
@@ -371,6 +374,7 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
           selectedLeafGuardName={selectedLeafGuardName || null}
           sectionBreakdownRows={sectionBreakdownRows}
           extras={extrasMaterialRows.map((r) => ({ name: r.description, quantity: r.qty, unit_price: r.unitPrice }))}
+          logoUrl={logoUrl}
         />
       );
       const blob = await pdf(doc).toBlob();
@@ -383,7 +387,7 @@ export default function GutterProjectFormView({ mode = "create", projectId = nul
     } finally {
       setPrinting(false);
     }
-  }, [project, quoteResult, companyProfile, displayDate, selectedManufacturerName, selectedLeafGuardName, sectionBreakdownRows, extrasMaterialRows, printing]);
+  }, [project, quoteResult, companyProfile, displayDate, selectedManufacturerName, selectedLeafGuardName, sectionBreakdownRows, extrasMaterialRows, logoUrl, printing]);
 
   const discountAmount = Number(quoteResult?.pricing?.discountAmount || 0);
   const hasDiscount = discountAmount > 0;

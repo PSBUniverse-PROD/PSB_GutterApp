@@ -8,9 +8,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faPrint, faCheck, faRulerCombined, faBoxOpen, faSignsPost } from "@fortawesome/free-solid-svg-icons";
 import { faBuilding, faPenToSquare, faIdBadge, faNoteSticky } from "@fortawesome/free-regular-svg-icons";
 import { Button, toastSuccess, toastError } from "@/shared/components/ui";
+import Image from "next/image";
 import { pdf } from "@react-pdf/renderer";
 import { WorkOrderPdf } from "./GutterPdfDocuments";
 import { calculateMaterials, calculateQuote } from "../data/gutter.data";
+import logoImg from "../assets/PSGD Logo.png";
 import { saveGutterWorkOrder } from "../data/gutter.actions";
 import { getPSBUserPayloadFromCookie } from "@/core/sso-client";
 import styles from "./GutterWorkOrder.module.css";
@@ -64,7 +66,7 @@ const buildInitialWorkOrder = (saved) => {
   };
 };
 
-export default function GutterWorkOrderView({ projectId, projectData, manufacturerName, workOrderData }) {
+export default function GutterWorkOrderView({ projectId, projectData, manufacturerName, workOrderData, setup }) {
   const router = useRouter();
   const header = projectData?.projectHeader || null;
   const sides = projectData?.projectSides || [];
@@ -169,6 +171,15 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
       return { ...prev, downspoutAssignments: next };
     });
   };
+  const companyProfile = useMemo(() => {
+    const c = Array.isArray(setup?.company) ? setup.company[0] : setup?.company || {};
+    return {
+      name: c.short_name || c.comp_name || "Company",
+      email: c.comp_email || "",
+      phone: c.comp_phone || "",
+    };
+  }, [setup]);
+  const logoUrl = useMemo(() => (typeof logoImg === "object" && logoImg?.src ? logoImg.src : logoImg), []);
 
   // Direct PDF print
   const handlePrint = useCallback(async () => {
@@ -187,7 +198,6 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
     }
     setNavigatingPrint(true);
     try {
-      const companyProfile = { name: "Premium Gutters & DOORS", email: "sales.pdg@premiumsteelgroup.com", phone: "817-502-2520" };
       const doc = (
         <WorkOrderPdf
           header={header}
@@ -195,6 +205,7 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
           materials={materials}
           companyProfile={companyProfile}
           workOrderData={workOrder}
+          logoUrl={logoUrl}
         />
       );
       const blob = await pdf(doc).toBlob();
@@ -207,7 +218,7 @@ export default function GutterWorkOrderView({ projectId, projectData, manufactur
     } finally {
       setNavigatingPrint(false);
     }
-  }, [hasChanges, projectId, workOrder, header, sides, materials, saveGutterWorkOrder, currentSnapshot]);
+  }, [hasChanges, projectId, workOrder, header, sides, materials, companyProfile, logoUrl, saveGutterWorkOrder, currentSnapshot]);
 
   if (!header) return <Container className="py-4">Project not found.</Container>;
 
